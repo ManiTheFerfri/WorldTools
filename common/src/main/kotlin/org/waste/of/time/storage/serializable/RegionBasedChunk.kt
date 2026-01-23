@@ -35,6 +35,8 @@ import org.waste.of.time.storage.Cacheable
 import org.waste.of.time.storage.CustomRegionBasedStorage
 import org.waste.of.time.storage.RegionBased
 import org.waste.of.time.storage.cache.HotCache
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet
+
 
 open class RegionBasedChunk(
     val chunk: WorldChunk,
@@ -74,11 +76,19 @@ open class RegionBasedChunk(
         Blocks.AIR.defaultState
     )
 
+
     override fun cache() {
         HotCache.chunks[chunkPos] = this
-        HotCache.savedChunks.add(chunkPos.toLong())
-    }
+    
+        // track saved chunks per-dimension
+        val dim = world.registryKey
+        val set = HotCache.savedDimensionChunks.computeIfAbsent(dim) { LongOpenHashSet() }
 
+        synchronized(set) {
+            set.add(chunkPos.toLong())
+        }
+    }
+	
     override fun flush() {
         HotCache.chunks.remove(chunkPos)
     }
