@@ -12,7 +12,5 @@ pluginManagement {
 }
 
 include("common")
-val enabled = providers.gradleProperty("enabled_platforms").orNull ?: "fabric,forge"
-val platforms = enabled.split(',').map { it.trim() }.toSet()
-if (platforms.contains("fabric")) include("fabric")
-if (platforms.contains("forge")) include("forge")
+include("fabric")
+// include("forge") // Forge is not supported for MC 1.21.11+, use NeoForge instead
