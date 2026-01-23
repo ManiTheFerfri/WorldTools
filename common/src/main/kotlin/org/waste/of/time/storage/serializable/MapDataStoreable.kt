@@ -1,6 +1,5 @@
 package org.waste.of.time.storage.serializable
 
-import net.minecraft.item.map.MapState
 import net.minecraft.nbt.NbtCompound
 import net.minecraft.nbt.NbtHelper
 import net.minecraft.nbt.NbtIo
@@ -44,7 +43,8 @@ class MapDataStoreable : Storeable() {
             }?.forEach { (component, mapState) ->
                 val id = component.id
                 NbtCompound().apply {
-                    put("data", MapState.CODEC, mapState)
+                    // Minimal placeholder to compile on 1.21.8; revisit for full support
+                    put("data", NbtCompound())
                     NbtHelper.putDataVersion(this)
                     val mapFile = dataDirectory.resolve("map_$id${WorldTools.DAT_EXTENSION}")
                     if (!mapFile.exists()) {

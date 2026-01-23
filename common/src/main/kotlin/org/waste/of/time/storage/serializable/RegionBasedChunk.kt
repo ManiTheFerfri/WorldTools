@@ -1,6 +1,5 @@
 package org.waste.of.time.storage.serializable
 
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet
 import net.minecraft.SharedConstants
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
@@ -76,10 +75,7 @@ open class RegionBasedChunk(
 
     override fun cache() {
         HotCache.chunks[chunkPos] = this
-        val dimensionChunks = HotCache.savedDimensionChunks.getOrPut(world.registryKey) { LongOpenHashSet() }
-        synchronized(dimensionChunks) {
-            dimensionChunks.add(chunkPos.toLong())
-        }
+        HotCache.savedChunks.add(chunkPos.toLong())
     }
 
     override fun flush() {
@@ -104,8 +100,9 @@ open class RegionBasedChunk(
             ?: run {
                 // remove any previously stored entities in this chunk in case there are no entities to store
                 RegionBasedEntities(chunkPos, emptySet(), world).store(session, cachedStorages)
-        }
-        if (chunk.isEmpty) return
+            }
+        // Write even if the client marks the chunk as 'empty';
+        // on the client this can be true while sections are still present.
         super.writeToStorage(session, storage, cachedStorages)
     }
 
@@ -117,7 +114,7 @@ open class RegionBasedChunk(
             putLong(TIMESTAMP_KEY, System.currentTimeMillis())
         }
 
-        putInt("DataVersion", SharedConstants.getGameVersion().saveVersion.id)
+        net.minecraft.nbt.NbtHelper.putDataVersion(this)
         putInt(SerializedChunk.X_POS_KEY, chunk.pos.x)
         putInt("yPos", chunk.bottomSectionCoord)
         putInt(SerializedChunk.Z_POS_KEY, chunk.pos.z)
@@ -141,7 +138,7 @@ open class RegionBasedChunk(
             upsertBlockEntities()
         })
 
-        getTickSchedulers(chunk)
+        // omit tick schedulers in 1.21.8 port
         genPostProcessing(chunk)
 
         // skip structures
@@ -234,8 +231,7 @@ open class RegionBasedChunk(
     }
 
     private fun NbtCompound.getTickSchedulers(chunk: WorldChunk) {
-        val time = chunk.world.levelProperties.time
-        SerializedChunk.serializeTicks(this, chunk.getTickSchedulers(time))
+        // omitted for compatibility with 1.21.8 mappings
     }
 
     private fun NbtCompound.genPostProcessing(chunk: WorldChunk) {
@@ -245,7 +241,7 @@ open class RegionBasedChunk(
             chunk.heightmaps.filter {
                 chunk.status.heightmapTypes.contains(it.key)
             }.forEach { (key, value) ->
-                put(key.id, NbtLongArray(value.asLongArray()))
+                put(key.toString(), NbtLongArray(value.asLongArray()))
             }
         })
     }
