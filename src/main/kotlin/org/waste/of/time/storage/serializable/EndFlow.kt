@@ -26,7 +26,7 @@ class EndFlow : Storeable() {
         get() = verboseInfo
 
     override fun store(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
         StatisticManager.infoMessage.apply {
@@ -39,7 +39,7 @@ class EndFlow : Storeable() {
             ).copy().codepoint {
                 it.withClickEvent(
                     ClickEvent.OpenFile(
-                        session.getDirectory(LevelResource.ROOT).toFile().path
+                        session.getLevelPath(LevelResource.ROOT).toFile().path
                     )
                 )
             }

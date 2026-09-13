@@ -33,10 +33,10 @@ class CompressLevelStoreable : Storeable() {
         get() = verboseInfo
 
     override fun store(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
-        val root = session.getDirectory(LevelResource.ROOT)
+        val root = session.getLevelPath(LevelResource.ROOT)
         val zipPath = mc.levelSource.baseDir.resolve(zipName)
         LOG.info("Zipping $rootPath to $zipPath")
 

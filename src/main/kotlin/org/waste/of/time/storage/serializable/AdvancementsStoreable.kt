@@ -36,7 +36,7 @@ class AdvancementsStoreable : Storeable() {
         )
 
     override fun store(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
         val uuid = mc.player?.uuid ?: return
@@ -56,7 +56,7 @@ class AdvancementsStoreable : Storeable() {
             ).getOrThrow() as JsonElement
 
 
-        val advancements = session.getDirectory(LevelResource.ADVANCEMENTS)
+        val advancements = session.getLevelPath(LevelResource.ADVANCEMENTS)
         Files.createDirectories(advancements)
         Files.newBufferedWriter(
             advancements.resolve("$uuid.json"),

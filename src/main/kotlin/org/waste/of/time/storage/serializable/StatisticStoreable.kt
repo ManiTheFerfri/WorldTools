@@ -28,12 +28,12 @@ class StatisticStoreable : Storeable() {
     override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
-    override fun store(session: LevelStorageSource.Session, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
+    override fun store(session: LevelStorageSource.LevelStorageAccess, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
         // we need to get the stat map from the player's stat handler instead of the packet because the packet only
         // contains the stats that have changed since the last time the packet was sent
         val completeStatMap = mc.player?.stats?.stats?.toMap() ?: return
         val uuid = mc.player?.uuid ?: return
-        val statDirectory = session.getDirectory(LevelResource.PLAYER_STATS_DIR)
+        val statDirectory = session.getLevelPath(LevelResource.PLAYER_STATS_DIR)
 
         val json = JsonObject().apply {
             addProperty("Author", WorldTools.CREDIT_MESSAGE)

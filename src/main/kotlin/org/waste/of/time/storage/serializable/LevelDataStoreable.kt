@@ -9,7 +9,7 @@ import net.minecraft.util.Util
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.gamerules.GameRules
 import net.minecraft.world.level.border.WorldBorder
-import net.minecraft.world.level.storage.LevelStorage.Session
+import net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
 import org.waste.of.time.Utils.toByte
 import org.waste.of.time.WorldTools.DAT_EXTENSION
 import org.waste.of.time.WorldTools.LOG
@@ -39,13 +39,13 @@ class LevelDataStoreable : Storeable() {
         get() = verboseInfo
 
     /**
-     * See [net.minecraft.world.level.storage.LevelStorage.Session.backupLevelDataFile]
+     * See [net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess.backupLevelDataFile]
      */
     override fun store(
-        session: Session,
+        session: LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
-        val resultingFile = session.getDirectory(LevelResource.ROOT).toFile()
+        val resultingFile = session.getLevelPath(LevelResource.ROOT).toFile()
         val dataNbt = serializeLevelData()
         // if we save an empty level.dat, clients will crash when opening the SP worlds screen
         if (dataNbt.isEmpty) throw RuntimeException("Failed to serialize level data")
@@ -56,8 +56,8 @@ class LevelDataStoreable : Storeable() {
         try {
             val newFile = File.createTempFile("level", DAT_EXTENSION, resultingFile).toPath()
             NbtIo.writeCompressed(levelNbt, newFile)
-            val backup = session.getDirectory(LevelResource.OLD_LEVEL_DATA_FILE)
-            val current = session.getDirectory(LevelResource.LEVEL_DATA_FILE)
+            val backup = session.getLevelPath(LevelResource.OLD_LEVEL_DATA_FILE)
+            val current = session.getLevelPath(LevelResource.LEVEL_DATA_FILE)
             Util.backupAndReplace(current, newFile, backup)
             LOG.info("Saved level data.")
         } catch (exception: IOException) {
@@ -86,10 +86,10 @@ class LevelDataStoreable : Storeable() {
         // skip removed features
 
         put("Version", CompoundTag().apply {
-            putString("Name", SharedConstants.getLaunchedVersion().name())
-            putInt("Id", SharedConstants.getLaunchedVersion().dataVersion().id())
-            putBoolean("Snapshot", !SharedConstants.getLaunchedVersion().stable())
-            putString("Series", SharedConstants.getLaunchedVersion().dataVersion().series())
+            putString("Name", SharedConstants.getCurrentVersion().name())
+            putInt("Id", SharedConstants.getCurrentVersion().dataVersion().id())
+            putBoolean("Snapshot", !SharedConstants.getCurrentVersion().stable())
+            putString("Series", SharedConstants.getCurrentVersion().dataVersion().series())
         })
 
         NbtUtils.putDataVersion(this)
@@ -99,38 +99,38 @@ class LevelDataStoreable : Storeable() {
             it.profile.id == player.uuid
         }?.let {
             putInt("GameType", it.gameMode.getIndex())
-        } ?: putInt("GameType", player.entityWorld.server?.gameType?.getIndex() ?: 0)
+        } ?: putInt("GameType", player.level.server?.gameType?.getIndex() ?: 0)
 
-        putInt("SpawnX", player.entityWorld.levelData.getRespawnData().getPos().x)
-        putInt("SpawnY", player.entityWorld.levelData.getRespawnData().getPos().y)
-        putInt("SpawnZ", player.entityWorld.levelData.getRespawnData().getPos().z)
-        putFloat("SpawnAngle", player.entityWorld.levelData.getRespawnData().yaw())
-        putLong("Time", player.entityWorld.time)
-        putLong("DayTime", player.entityWorld.dayTime)
+        putInt("SpawnX", player.level.levelData.getRespawnData().getPos().x)
+        putInt("SpawnY", player.level.levelData.getRespawnData().getPos().y)
+        putInt("SpawnZ", player.level.levelData.getRespawnData().getPos().z)
+        putFloat("SpawnAngle", player.level.levelData.getRespawnData().yaw())
+        putLong("Time", player.level.time)
+        putLong("DayTime", player.level.dayTime)
         putLong("LastPlayed", System.currentTimeMs())
         putString("LevelName", currentLevelName)
         putInt("version", 19133)
         putInt("clearWeatherTime", 0) // not sure
         putInt("rainTime", 0) // not sure
-        putBoolean("raining", player.entityWorld.isRaining)
-        putBoolean("thundering", player.entityWorld.isThundering)
-        putBoolean("hardcore", player.entityWorld.server?.hardcore ?: false)
+        putBoolean("raining", player.level.isRaining)
+        putBoolean("thundering", player.level.isThundering)
+        putBoolean("hardcore", player.level.server?.hardcore ?: false)
         putInt("thunderTime", 0) // not sure
         putBoolean("allowCommands", true) // not sure
         putBoolean("initialized", true) // not sure
 
-        val worldBorderNbt = WorldBorder.CODEC.encodeStart(NbtOps.INSTANCE, player.entityWorld.worldBorder)
+        val worldBorderNbt = WorldBorder.CODEC.encodeStart(NbtOps.INSTANCE, player.level.worldBorder)
             .getOrThrow { error -> IllegalStateException("Failed to encode world border: $error") }
         put("WorldBorder", worldBorderNbt)
 
-        putByte("Difficulty", player.entityWorld.levelData.difficulty.id.toByte())
+        putByte("Difficulty", player.level.levelData.difficulty.id.toByte())
         putBoolean("DifficultyLocked", false) // not sure
 
         // ToDo: Seems that the client side game rules were removed. Now only works for single player :/
         // Game rules need to be serialized using the CODEC now
-        val gameRules = player.entityWorld.server?.worldData?.getGameRules()
+        val gameRules = player.level.server?.worldData?.getGameRules()
         val rulesNbt = if (gameRules != null) {
-            val codec = net.minecraft.world.rule.GameRules.createCodec(player.entityWorld.server!!.worldData.dataConfiguration.enabledFeatures)
+            val codec = net.minecraft.world.rule.GameRules.createCodec(player.level.server!!.worldData.dataConfiguration.enabledFeatures)
             codec.encodeStart(NbtOps.INSTANCE, gameRules).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
         } else {
             CompoundTag()
@@ -140,7 +140,7 @@ class LevelDataStoreable : Storeable() {
         player.writeData(playerWriteView)
         put("Player", playerWriteView.output.apply {
             remove("LastDeathLocation") // can contain sensitive information
-            putString("Dimension", "minecraft:${player.entityWorld.registryKey.value.path}")
+            putString("Dimension", "minecraft:${player.level.registryKey.value.path}")
         })
 
         put("DragonFight", CompoundTag()) // not sure

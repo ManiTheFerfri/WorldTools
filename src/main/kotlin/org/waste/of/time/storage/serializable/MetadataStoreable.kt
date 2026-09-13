@@ -3,7 +3,7 @@ package org.waste.of.time.storage.serializable
 import net.minecraft.client.multiplayer.PlayerInfo
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.level.storage.LevelResource
-import net.minecraft.world.level.storage.LevelStorage.Session
+import net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
 import org.waste.of.time.Utils
 import org.waste.of.time.WorldTools.CREDIT_MESSAGE_MD
 import org.waste.of.time.WorldTools.LOG
@@ -35,10 +35,10 @@ class MetadataStoreable : Storeable() {
     override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
-    override fun store(chatSession: Session, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
+    override fun store(chatSession: LevelStorageAccess, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
         chatSession.writeIconFile()
 
-        chatSession.getDirectory(LevelResource.ROOT).resolve(MOD_NAME).apply {
+        chatSession.getLevelPath(LevelResource.ROOT).resolve(MOD_NAME).apply {
             Files.createDirectories(this)
 
             writePlayerEntryList()
@@ -75,7 +75,7 @@ class MetadataStoreable : Storeable() {
         }
     }
 
-    private fun Session.writeIconFile() {
+    private fun LevelStorageAccess.writeIconFile() {
         mc.connection?.serverData?.favicon?.let { favicon ->
             iconFile.ifPresent {
                 it.writeBytes(favicon)
@@ -146,7 +146,7 @@ class MetadataStoreable : Storeable() {
         }
 
         mc.connection?.sessionId?.let { id ->
-            appendLine("- **Session ID**: `$id`")
+            appendLine("- **LevelStorageAccess ID**: `$id`")
         }
 
         appendLine()
@@ -154,7 +154,7 @@ class MetadataStoreable : Storeable() {
     }.toString()
 
     private fun createPlayerEntryList(listEntries: List<PlayerInfo>) = StringBuilder().apply {
-        appendLine("Name, ID, Game Mode, Latency, Scoreboard Team, Model Type, Session ID, Public Key")
+        appendLine("Name, ID, Game Mode, Latency, Scoreboard Team, Model Type, LevelStorageAccess ID, Public Key")
 
         listEntries.forEachIndexed { i, entry ->
             StorageFlow.lastStoredTimestamp = System.currentTimeMs()

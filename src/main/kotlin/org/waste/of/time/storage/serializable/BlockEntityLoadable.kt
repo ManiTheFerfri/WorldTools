@@ -31,7 +31,7 @@ class BlockEntityLoadable(
     )
 
     fun load(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ): Boolean {
         generateStorage(session, cachedStorages)

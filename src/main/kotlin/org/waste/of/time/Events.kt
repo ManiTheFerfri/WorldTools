@@ -124,7 +124,7 @@ object Events {
             .forEach { renderBox(it.value.position.vec, Color(config.render.fromCacheLoadedContainerColor)) }
 
         HotCache.unscannedEntities
-            .forEach { renderBox(it.entity.entityPos.add(-.5, .0, -.5), Color(config.render.unscannedEntityColor)) }
+            .forEach { renderBox(it.entity.position.add(-.5, .0, -.5), Color(config.render.unscannedEntityColor)) }
     }
 
     private val BlockPos.vec get() = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
@@ -178,9 +178,9 @@ object Events {
             //  need to find a reliable way to determine it
             //  if chunk is loaded, remove the entity? -> doesn't seem to work because server will remove entity before chunk is unloaded
             mc.player?.let { player ->
-                if (entity.entityPos.manhattanDistance2d(player.entityPos) < 32) { // todo: configurable distance, this should be small enough to be safe for most cases
+                if (entity.position.manhattanDistance2d(player.position) < 32) { // todo: configurable distance, this should be small enough to be safe for most cases
                     val cacheable = EntityCacheable(entity)
-                    HotCache.entities[entity.chunkPos]?.remove(cacheable)
+                    HotCache.entities[entity.chunkPosition]?.remove(cacheable)
                 }
             }
         }

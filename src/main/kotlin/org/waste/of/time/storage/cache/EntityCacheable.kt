@@ -32,7 +32,7 @@ data class EntityCacheable(
     }
 
     override fun cache() {
-        HotCache.entities.computeIfAbsent(entity.chunkPos) { mutableSetOf() }.apply {
+        HotCache.entities.computeIfAbsent(entity.chunkPosition) { mutableSetOf() }.apply {
             // Remove the entity if it already exists to update it
             removeIf { it.entity.uuid == entity.uuid }
             add(this@EntityCacheable)
@@ -40,7 +40,7 @@ data class EntityCacheable(
     }
 
     override fun flush() {
-        val chunkPos = entity.chunkPos
+        val chunkPos = entity.chunkPosition
         HotCache.entities[chunkPos]?.let { list ->
             list.remove(this)
             if (list.isEmpty()) {

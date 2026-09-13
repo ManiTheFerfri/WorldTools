@@ -28,7 +28,7 @@ abstract class RegionBased(
 
     // can be overridden but super should be called after
     open fun writeToStorage(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         storage: CustomRegionBasedStorage,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
@@ -44,7 +44,7 @@ abstract class RegionBased(
     }
 
     override fun store(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
         if (!shouldStore()) return
@@ -53,10 +53,10 @@ abstract class RegionBased(
     }
 
     fun generateStorage(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ): CustomRegionBasedStorage {
-        val path = session.getDirectory(LevelResource.ROOT)
+        val path = session.getLevelPath(LevelResource.ROOT)
             .resolve(dimensionPath)
             .resolve(suffix)
         return cachedStorages.getOrPut(path.toString()) {

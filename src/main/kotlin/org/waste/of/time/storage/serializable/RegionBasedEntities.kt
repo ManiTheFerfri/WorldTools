@@ -46,7 +46,7 @@ class RegionBasedEntities(
             }
         })
 
-        putInt("DataVersion", SharedConstants.getLaunchedVersion().dataVersion().id())
+        putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().id())
         put("Position", IntArrayTag(intArrayOf(chunkPos.x, chunkPos.z)))
         if (config.debug.logSavedEntities) {
             entities.forEach { entity -> LOG.info("Entity saved: $entity (Chunk: $chunkPos)") }
@@ -54,7 +54,7 @@ class RegionBasedEntities(
     }
 
     override fun writeToStorage(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         storage: CustomRegionBasedStorage,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {

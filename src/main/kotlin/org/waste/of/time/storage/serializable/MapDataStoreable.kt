@@ -30,11 +30,11 @@ class MapDataStoreable : Storeable() {
         get() = verboseInfo
 
     override fun store(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
         // this map doesn't seem to be cleared until the world closes
-        val dataDirectory = session.getDirectory(LevelResource.ROOT).resolve("data")
+        val dataDirectory = session.getLevelPath(LevelResource.ROOT).resolve("data")
         if (!dataDirectory.toFile().exists()) {
             dataDirectory.toFile().mkdirs()
         }

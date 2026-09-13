@@ -99,7 +99,7 @@ open class RegionBasedChunk(
     }
 
     override fun writeToStorage(
-        session: LevelStorageSource.Session,
+        session: LevelStorageSource.LevelStorageAccess,
         storage: CustomRegionBasedStorage,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
@@ -124,7 +124,7 @@ open class RegionBasedChunk(
             putLong(TIMESTAMP_KEY, System.currentTimeMs())
         }
 
-        putInt("DataVersion", SharedConstants.getLaunchedVersion().dataVersion().id())
+        putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().id())
         putInt(SerializableChunkData.X_POS_TAG, chunk.pos.x)
         putInt("yPos", chunk.bottomSectionCoord)
         putInt(SerializableChunkData.Z_POS_TAG, chunk.pos.z)
