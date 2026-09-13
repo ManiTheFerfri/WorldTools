@@ -128,7 +128,9 @@ object CaptureManager {
     private fun syncCacheFromWorldState() {
         val world = mc.level ?: return
         val storage = world.chunkSource.storage
-        val diameter = storage.viewRange * 2 + 1
+        // 26.2: viewRange is already the diameter (chunkRadius * 2 + 1) and the chunk array is
+        // viewRange * viewRange; the old "* 2 + 1" overflowed the array (AIOOBE at capture start).
+        val diameter = storage.viewRange
 
         for (i in 0 until diameter * diameter) {
             storage.getChunk(i)?.let { chunk ->

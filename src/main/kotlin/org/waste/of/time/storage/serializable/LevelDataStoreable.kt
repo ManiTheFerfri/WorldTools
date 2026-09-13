@@ -7,9 +7,14 @@ import net.minecraft.network.chat.MutableComponent
 import net.minecraft.util.ProblemReporter
 import net.minecraft.util.Util
 import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.world.level.gamerules.GameRule
 import net.minecraft.world.level.gamerules.GameRules
 import net.minecraft.world.level.border.WorldBorder
 import net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
+import net.minecraft.world.flag.FeatureFlags
+import net.minecraft.world.level.gamerules.GameRuleMap
+import java.nio.file.Files
+import java.nio.file.Path
 import org.waste.of.time.Utils.toByte
 import org.waste.of.time.WorldTools.DAT_EXTENSION
 import org.waste.of.time.WorldTools.LOG
@@ -66,6 +71,46 @@ class LevelDataStoreable : Storeable() {
                 resultingFile.path,
                 exception.localizedMessage
             )
+        }
+
+        // 26.2 stores world gen settings (and game rules) in separate saved-data files next to
+        // level.dat, read via LevelStorageSource.readExistingSavedData(WorldGenSettings.TYPE / GameRuleMap.TYPE).
+        // Without data/minecraft/world_gen_settings.dat the world fails to load ("Overworld settings missing").
+        try {
+            val dataDir = session.getLevelPath(LevelResource.DATA)
+            writeSavedDataFile(
+                dataDir.resolve("minecraft/world_gen_settings.dat"),
+                worldGenSettingsNbt()
+            )
+            writeSavedDataFile(
+                dataDir.resolve("minecraft/game_rules.dat"),
+                gameRulesNbt()
+            )
+            LOG.info("Saved world gen settings and game rules.")
+        } catch (exception: IOException) {
+            MessageManager.sendError(
+                "worldtools.log.error.failed_to_save_level",
+                resultingFile.path,
+                exception.localizedMessage
+            )
+        }
+    }
+
+    /**
+     * Mirrors LevelStorageSource.writeSavedData: compressed {data: <nbt>, DataVersion} file.
+     */
+    private fun writeSavedDataFile(target: Path, dataNbt: CompoundTag) {
+        val wrapper = CompoundTag().apply {
+            put("data", dataNbt)
+            NbtUtils.addCurrentDataVersion(this)
+        }
+        Files.createDirectories(target.parent)
+        val newFile = Files.createTempFile(target.parent, "saved_data", DAT_EXTENSION)
+        try {
+            NbtIo.writeCompressed(wrapper, newFile)
+            Files.move(newFile, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(newFile)
         }
     }
 
@@ -175,10 +220,47 @@ class LevelDataStoreable : Storeable() {
         putString(GameRules.ADVANCE_WEATHER.getIdentifier().path, roomDefinition.doWeatherCycle.toString())
     }
 
+    /**
+     * 26.2 reads world gen settings from data/minecraft/world_gen_settings.dat via
+     * WorldGenSettings.CODEC: {seed: long, generate_structures: bool, bonus_chest: bool, dimensions: {...}}.
+     */
+    private fun worldGenSettingsNbt() = generatorMockNbt()
+
+    /**
+     * 26.2 reads game rules from data/minecraft/game_rules.dat via GameRuleMap.CODEC
+     * (dispatchedMap: rule name -> typed value). Apply config overrides, then encode with the
+     * vanilla codec so the value types are always correct.
+     */
+    private fun gameRulesNbt(): CompoundTag {
+        val rules = GameRuleMap.of()
+        val roomDefinition = config.world.gameRules
+        if (roomDefinition.modifyGameRules) {
+            fun boolRule(rule: GameRule<Boolean>, value: Boolean) = rules.set(rule, value)
+
+            boolRule(GameRules.SPAWN_WARDENS, roomDefinition.doWardenSpawning)
+            boolRule(GameRules.SPREAD_VINES, roomDefinition.doVinesSpread)
+            boolRule(GameRules.SPAWN_MOBS, roomDefinition.doMobSpawning)
+            boolRule(GameRules.ADVANCE_TIME, roomDefinition.doDaylightCycle)
+            boolRule(GameRules.KEEP_INVENTORY, roomDefinition.keepInventory)
+            boolRule(GameRules.MOB_GRIEFING, roomDefinition.doMobGriefing)
+            boolRule(GameRules.SPAWN_WANDERING_TRADERS, roomDefinition.doTraderSpawning)
+            boolRule(GameRules.SPAWN_PATROLS, roomDefinition.doPatrolSpawning)
+            boolRule(GameRules.ADVANCE_WEATHER, roomDefinition.doWeatherCycle)
+            // doFireTick (bool) was replaced in 26.2 by FIRE_SPREAD_RADIUS_AROUND_PLAYER (int, 0 = off)
+            rules.set(GameRules.FIRE_SPREAD_RADIUS_AROUND_PLAYER, if (roomDefinition.doFireTick) 1 else 0)
+        }
+        val codec = GameRules.codec(FeatureFlags.VANILLA_SET)
+        @Suppress("UNCHECKED_CAST")
+        val gameRules = GameRules(FeatureFlags.VANILLA_SET, rules)
+        return codec.encodeStart(NbtOps.INSTANCE, gameRules)
+            .getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
+    }
+
     private fun generatorMockNbt() = CompoundTag().apply {
         putByte("bonus_chest", config.world.worldGenerator.generateBonusChest.toByte())
         putLong("seed", config.world.worldGenerator.seed)
-        putByte("generate_features", config.world.worldGenerator.generateFeatures.toByte())
+        // 26.2 renamed this WorldOptions key: generate_features -> generate_structures
+        putBoolean("generate_structures", config.world.worldGenerator.generateFeatures)
 
         put("dimensions", CompoundTag().apply {
             CaptureManager.lastWorldKeys.forEach { key ->
