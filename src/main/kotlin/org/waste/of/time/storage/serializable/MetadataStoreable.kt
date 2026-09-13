@@ -1,8 +1,8 @@
 package org.waste.of.time.storage.serializable
 
-import net.minecraft.client.network.PlayerListEntry
-import net.minecraft.text.MutableText
-import net.minecraft.util.WorldSavePath
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorage.Session
 import org.waste.of.time.Utils
 import org.waste.of.time.WorldTools.CREDIT_MESSAGE_MD
@@ -26,19 +26,19 @@ import kotlin.io.path.writeBytes
 class MetadataStoreable : Storeable() {
     override fun shouldStore() = config.general.capture.metadata
 
-    override val verboseInfo: MutableText
+    override val verboseInfo: MutableComponent
         get() = translateHighlight(
             "worldtools.capture.saved.metadata",
             currentLevelName
         )
 
-    override val anonymizedInfo: MutableText
+    override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
-    override fun store(session: Session, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
-        session.writeIconFile()
+    override fun store(chatSession: Session, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
+        chatSession.writeIconFile()
 
-        session.getDirectory(WorldSavePath.ROOT).resolve(MOD_NAME).apply {
+        chatSession.getDirectory(LevelResource.ROOT).resolve(MOD_NAME).apply {
             Files.createDirectories(this)
 
             writePlayerEntryList()
@@ -56,9 +56,9 @@ class MetadataStoreable : Storeable() {
     }
 
     private fun Path.writePlayerEntryList() {
-        if (mc.isInSingleplayer) return
+        if (mc.isLocalServer) return
 
-        mc.networkHandler?.playerList?.let { playerList ->
+        mc.connection?.playerList?.let { playerList ->
             if (playerList.isEmpty()) return@let
             resolve("Player Entry List.csv").toFile()
                 .writeText(createPlayerEntryList(playerList.toList()))
@@ -67,7 +67,7 @@ class MetadataStoreable : Storeable() {
     }
 
     private fun Path.writeDimensionTree() {
-        mc.networkHandler?.worldKeys?.let { keys ->
+        mc.connection?.levels?.let { keys ->
             if (keys.isEmpty()) return@let
             resolve("Dimension Tree.txt").toFile()
                 .writeText(PathTreeNode.buildTree(keys.map { it.value.path }))
@@ -76,7 +76,7 @@ class MetadataStoreable : Storeable() {
     }
 
     private fun Session.writeIconFile() {
-        mc.networkHandler?.serverInfo?.favicon?.let { favicon ->
+        mc.connection?.serverData?.favicon?.let { favicon ->
             iconFile.ifPresent {
                 it.writeBytes(favicon)
             }
@@ -95,7 +95,7 @@ class MetadataStoreable : Storeable() {
             appendLine("# $currentLevelName World Save - Snapshot Details")
         }
 
-        if (mc.isInSingleplayer) {
+        if (mc.isLocalServer) {
             appendLine("![World Icon](../icon.png)")
         } else {
             appendLine("![Server Icon](../icon.png)")
@@ -107,16 +107,16 @@ class MetadataStoreable : Storeable() {
 
         appendLine()
 
-        mc.networkHandler?.serverInfo?.let { info ->
+        mc.connection?.serverData?.let { info ->
             appendLine("## Server")
             if (info.name != "Minecraft Server") {
                 appendLine("- **List Entry Name**: `${info.name}`")
             }
             appendLine("- **IP**: `${info.address}`")
-            if (info.playerCountLabel.string.isNotBlank()) {
+            if (info.status.text.isNotBlank()) {
                 appendLine("- **Capacity**: `${info.playerCountLabel.string}`")
             }
-            mc.networkHandler?.let {
+            mc.connection?.let {
                 appendLine("- **Brand**: `${it.brand}`")
             }
             appendLine("- **MOTD**: `${info.label.string.split("\n").joinToString(" ")}`")
@@ -135,7 +135,7 @@ class MetadataStoreable : Storeable() {
 
             appendLine()
             appendLine("## Connection")
-            (mc.networkHandler?.connection?.address as? InetSocketAddress)?.let {
+            (mc.connection?.connection?.hostName as? InetSocketAddress)?.let {
                 appendLine("- **Host Name**: `${it.address.canonicalHostName}`")
                 appendLine("- **Port**: `${it.port}`")
             }
@@ -145,7 +145,7 @@ class MetadataStoreable : Storeable() {
             appendLine("- **Version**: `${mc.server?.version}`")
         }
 
-        mc.networkHandler?.sessionId?.let { id ->
+        mc.connection?.sessionId?.let { id ->
             appendLine("- **Session ID**: `$id`")
         }
 
@@ -153,24 +153,24 @@ class MetadataStoreable : Storeable() {
         appendLine(CREDIT_MESSAGE_MD)
     }.toString()
 
-    private fun createPlayerEntryList(listEntries: List<PlayerListEntry>) = StringBuilder().apply {
+    private fun createPlayerEntryList(listEntries: List<PlayerInfo>) = StringBuilder().apply {
         appendLine("Name, ID, Game Mode, Latency, Scoreboard Team, Model Type, Session ID, Public Key")
 
         listEntries.forEachIndexed { i, entry ->
-            StorageFlow.lastStoredTimestamp = System.currentTimeMillis()
-            BarManager.progressBar.percent = i.toFloat() / listEntries.size
+            StorageFlow.lastStoredTimestamp = System.currentTimeMs()
+            BarManager.progressBar.progress = i.toFloat() / listEntries.size
             serializePlayerListEntry(entry)
         }
     }.toString()
 
-    private fun StringBuilder.serializePlayerListEntry(entry: PlayerListEntry) {
+    private fun StringBuilder.serializePlayerListEntry(entry: PlayerInfo) {
         append("${entry.profile.name}, ")
         append("${entry.profile.id}, ")
         append("${entry.gameMode.name}, ")
         append("${entry.latency}, ")
         append("${entry.scoreboardTeam?.name}, ")
-        appendLine(entry.skinTextures.model)
-        entry.session?.let {
+        appendLine(entry.skin.model)
+        entry.chatSession?.let {
             append("${it.sessionId}, ")
             append("${it.publicKeyData?.data}, ")
         }

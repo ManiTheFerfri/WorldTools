@@ -4,17 +4,17 @@ import it.unimi.dsi.fastutil.longs.LongArrayList
 import it.unimi.dsi.fastutil.longs.LongCollection
 import it.unimi.dsi.fastutil.longs.LongLists
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet
-import net.minecraft.block.entity.BlockEntity
-import net.minecraft.block.entity.LecternBlockEntity
-import net.minecraft.block.entity.LockableContainerBlockEntity
-import net.minecraft.entity.Entity
-import net.minecraft.entity.vehicle.VehicleInventory
-import net.minecraft.inventory.EnderChestInventory
-import net.minecraft.registry.Registries
-import net.minecraft.registry.RegistryKey
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.ChunkPos
-import net.minecraft.world.World
+import net.minecraft.world.level.block.entity.BlockEntity
+import net.minecraft.world.level.block.entity.LecternBlockEntity
+import net.minecraft.world.level.block.entity.BaseContainerBlockEntity
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.vehicle.ContainerEntity
+import net.minecraft.world.inventory.PlayerEnderChestContainer
+import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.BlockPos
+import net.minecraft.world.level.ChunkPos
+import net.minecraft.world.level.Level
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
 import org.waste.of.time.WorldTools.mc
@@ -32,7 +32,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object HotCache {
     val chunks = ConcurrentHashMap<ChunkPos, RegionBasedChunk>()
-    internal val savedDimensionChunks = ConcurrentHashMap<RegistryKey<World>, LongOpenHashSet>()
+    internal val savedDimensionChunks = ConcurrentHashMap<ResourceKey<Level>, LongOpenHashSet>()
     val entities = ConcurrentHashMap<ChunkPos, MutableSet<EntityCacheable>>()
     val players: ConcurrentHashMap.KeySetView<PlayerStoreable, Boolean> = ConcurrentHashMap.newKeySet()
     val scannedBlockEntities = ConcurrentHashMap<BlockPos, BlockEntity>()
@@ -44,7 +44,7 @@ object HotCache {
         chunks.values
             .flatMap { it.chunk.blockEntities.values }
             .filter { it.isSupported }
-            .filterNot { scannedBlockEntities.containsKey(it.pos) }
+            .filterNot { scannedBlockEntities.containsKey(it.worldPosition) }
     }
     val unscannedEntities by LazyUpdatingDelegate(100) {
         entities.values
@@ -55,13 +55,13 @@ object HotCache {
     // map id's of maps that we've seen during the capture
     val mapIDs = mutableSetOf<Int>()
     val BlockEntity.isSupported get() =
-        this is LockableContainerBlockEntity
+        this is BaseContainerBlockEntity
                 || this is LecternBlockEntity
-    val Entity.isSupported get() = this is VehicleInventory
+    val Entity.isSupported get() = this is ContainerEntity
 
-    fun getEntitySerializableForChunk(chunkPos: ChunkPos, world: World) =
+    fun getEntitySerializableForChunk(chunkPos: ChunkPos, level: Level) =
         entities[chunkPos]?.let { entities ->
-            RegionBasedEntities(chunkPos, entities, world)
+            RegionBasedEntities(chunkPos, entities, level)
         }
 
     /**
@@ -73,9 +73,9 @@ object HotCache {
      */
     @Deprecated("This method will default to the current dimension. Please use the new method by passing in a dimension.")
     @Suppress("unused")
-    fun isChunkSaved(chunkX: Int, chunkZ: Int): Boolean {
-        val dimension = mc.world?.registryKey ?: World.OVERWORLD
-        return isChunkSaved(chunkX, chunkZ, dimension)
+    fun isChunkSaved(x: Int, z: Int): Boolean {
+        val dimension = mc.level?.dimension ?: Level.OVERWORLD
+        return isChunkSaved(x, z, dimension)
     }
 
     /**
@@ -87,9 +87,9 @@ object HotCache {
      * @return True if the chunk is saved, false otherwise.
      */
     @Suppress("MemberVisibilityCanBePrivate")
-    fun isChunkSaved(chunkX: Int, chunkZ: Int, dimension: RegistryKey<World>): Boolean {
+    fun isChunkSaved(x: Int, z: Int, dimension: ResourceKey<Level>): Boolean {
         val savedChunks = savedDimensionChunks[dimension] ?: return false
-        return savedChunks.contains(ChunkPos.toLong(chunkX, chunkZ))
+        return savedChunks.contains(ChunkPos.pack(x, z))
     }
 
     /**
@@ -99,7 +99,7 @@ object HotCache {
      * @return All the chunk positions saved.
      */
     @Suppress("unused")
-    fun getSavedChunks(dimension: RegistryKey<World>): LongCollection {
+    fun getSavedChunks(dimension: ResourceKey<Level>): LongCollection {
         val savedChunks = savedDimensionChunks[dimension] ?: return LongLists.EMPTY_LIST
         synchronized(savedChunks) {
             return LongArrayList(savedChunks)
@@ -116,8 +116,8 @@ object HotCache {
         mapIDs.clear()
 
         // failing to reset this could cause users to accidentally save their echest contents on subsequent captures
-        if (!mc.isInSingleplayer && !config.advanced.keepEnderChestContents) {
-            mc.player?.enderChestInventory = EnderChestInventory()
+        if (!mc.isLocalServer && !config.advanced.keepEnderChestContents) {
+            mc.player?.enderChestInventory = PlayerEnderChestContainer()
         }
         lastInteractedBlockEntity = null
         LOG.info("Cleared hot cache")
@@ -125,17 +125,17 @@ object HotCache {
 
     fun BlockEntity.markScanned(fromCache: Boolean = false) {
         if (fromCache) {
-            loadedBlockEntities[pos] = this
+            loadedBlockEntities[worldPosition] = this
         } else {
-            scannedBlockEntities[pos] = this
-            loadedBlockEntities.remove(pos)
+            scannedBlockEntities[worldPosition] = this
+            loadedBlockEntities.remove(worldPosition)
         }
 
-        world?.registryKey?.value?.path?.let {
+        level?.dimension?.value?.path?.let {
             StatisticManager.dimensions.add(it)
         }
         if (config.debug.logSavedContainers) {
-            LOG.info("Saved block entity: ${Registries.BLOCK_ENTITY_TYPE.getId(type)?.path} at $pos")
+            LOG.info("Saved block entity: ${BuiltInRegistries.BLOCK_ENTITY_TYPE.getId(type)?.path} at $pos")
         }
     }
 

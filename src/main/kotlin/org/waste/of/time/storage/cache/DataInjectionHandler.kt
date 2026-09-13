@@ -1,16 +1,16 @@
 package org.waste.of.time.storage.cache
 
-import net.minecraft.block.ChestBlock
+import net.minecraft.world.level.block.ChestBlock
 import net.minecraft.block.entity.*
-import net.minecraft.block.enums.ChestType
-import net.minecraft.client.gui.screen.Screen
+import net.minecraft.world.level.block.state.properties.ChestType
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screen.ingame.*
-import net.minecraft.entity.Entity
-import net.minecraft.entity.player.PlayerInventory
-import net.minecraft.entity.vehicle.HopperMinecartEntity
-import net.minecraft.entity.vehicle.VehicleInventory
-import net.minecraft.inventory.EnderChestInventory
-import net.minecraft.inventory.SimpleInventory
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Inventory
+import net.minecraft.world.entity.vehicle.minecart.MinecartHopper
+import net.minecraft.world.entity.vehicle.ContainerEntity
+import net.minecraft.world.inventory.PlayerEnderChestContainer
+import net.minecraft.world.SimpleContainer
 import org.waste.of.time.WorldTools.mc
 import org.waste.of.time.storage.cache.HotCache.markScanned
 import org.waste.of.time.storage.cache.HotCache.scannedBlockEntities
@@ -28,23 +28,23 @@ object DataInjectionHandler {
     private fun handleEntity(screen: Screen, entity: Entity) {
         when (screen) {
             is GenericContainerScreen -> {
-                (entity as? VehicleInventory)?.dataToVehicle(screen)
+                (entity as? ContainerEntity)?.dataToVehicle(screen)
             }
             is HopperScreen -> {
-                (entity as? HopperMinecartEntity)?.dataToHopperMinecart(screen)
+                (entity as? MinecartHopper)?.dataToHopperMinecart(screen)
             }
         }
 
         entity.markScanned()
     }
 
-    private fun VehicleInventory.dataToVehicle(screen: GenericContainerScreen) {
+    private fun ContainerEntity.dataToVehicle(screen: GenericContainerScreen) {
         screen.getContainerSlots().forEach {
             setStack(it.index, it.stack)
         }
     }
 
-    private fun HopperMinecartEntity.dataToHopperMinecart(screen: HopperScreen) {
+    private fun MinecartHopper.dataToHopperMinecart(screen: HopperScreen) {
         screen.getContainerSlots().forEach {
             setStack(it.index, it.stack)
         }
@@ -104,11 +104,11 @@ object DataInjectionHandler {
     }
 
     private fun dataToEnderChest(screen: GenericContainerScreen) {
-        if (mc.isInSingleplayer) return
-        val inventory = screen.screenHandler.inventory as? SimpleInventory ?: return
+        if (mc.isLocalServer) return
+        val inventory = screen.screenHandler.inventory as? SimpleContainer ?: return
         if (inventory.size() != 27) return
-        mc.player?.enderChestInventory = EnderChestInventory().apply {
-            repeat(inventory.size()) { i ->
+        mc.player?.enderChestInventory = PlayerEnderChestContainer().apply {
+            looping(inventory.size()) { i ->
                 setStack(i, inventory.getStack(i))
             }
         }
@@ -133,12 +133,12 @@ object DataInjectionHandler {
     }
 
     private fun ChestBlockEntity.dataToChest(screen: GenericContainerScreen) {
-        val facing = cachedState[ChestBlock.FACING] ?: return
-        val chestType = cachedState[ChestBlock.CHEST_TYPE] ?: return
+        val facing = blockState[ChestBlock.FACING] ?: return
+        val type = blockState[ChestBlock.TYPE] ?: return
         val containerSlots = screen.getContainerSlots()
         val inventories = containerSlots.partition { it.index < 27 }
 
-        when (chestType) {
+        when (type) {
             ChestType.SINGLE -> {
                 containerSlots.forEach {
                     setStack(it.index, it.stack)
@@ -146,8 +146,8 @@ object DataInjectionHandler {
             }
 
             ChestType.LEFT -> {
-                val pos = pos.offset(facing.rotateYClockwise())
-                val otherChest = world?.getBlockEntity(pos)
+                val position = position.offset(facing.getClockWise())
+                val otherChest = level?.getEntity(position)
                 if (otherChest !is ChestBlockEntity) return
 
                 inventories.first.forEach {
@@ -157,12 +157,12 @@ object DataInjectionHandler {
                     setStack(it.index - 27, it.stack)
                 }
 
-                scannedBlockEntities[otherChest.pos] = otherChest
+                scannedBlockEntities[otherChest.position] = otherChest
             }
 
             ChestType.RIGHT -> {
-                val pos = pos.offset(facing.rotateYCounterclockwise())
-                val otherChest = world?.getBlockEntity(pos)
+                val position = position.offset(facing.getCounterClockWise())
+                val otherChest = level?.getEntity(position)
                 if (otherChest !is ChestBlockEntity) return
 
                 inventories.first.forEach {
@@ -172,7 +172,7 @@ object DataInjectionHandler {
                     otherChest.setStack(it.index - 27, it.stack)
                 }
 
-                scannedBlockEntities[otherChest.pos] = otherChest
+                scannedBlockEntities[otherChest.position] = otherChest
             }
         }
     }
@@ -206,5 +206,5 @@ object DataInjectionHandler {
         }
     }
 
-    private fun HandledScreen<*>.getContainerSlots() = screenHandler.slots.filter { it.inventory !is PlayerInventory }
+    private fun HandledScreen<*>.getContainerSlots() = screenHandler.slots.filter { it.inventory !is Inventory }
 }

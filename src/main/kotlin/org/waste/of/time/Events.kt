@@ -1,21 +1,21 @@
 package org.waste.of.time
 
-import net.minecraft.client.MinecraftClient
-import net.minecraft.client.gui.screen.Screen
-import net.minecraft.client.gui.widget.ButtonWidget
-import net.minecraft.client.gui.widget.GridWidget
-import net.minecraft.client.render.DrawStyle
-import net.minecraft.entity.Entity
-import net.minecraft.entity.LivingEntity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.util.hit.BlockHitResult
-import net.minecraft.util.math.BlockPos
-import net.minecraft.util.math.Box
-import net.minecraft.util.math.ColorHelper
-import net.minecraft.util.math.Vec3d
-import net.minecraft.world.World
-import net.minecraft.world.chunk.WorldChunk
-import net.minecraft.world.debug.gizmo.GizmoDrawing
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.components.Button
+import net.minecraft.client.gui.layouts.GridLayout
+import net.minecraft.gizmos.GizmoStyle
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.BlockHitResult
+import net.minecraft.core.BlockPos
+import net.minecraft.world.phys.AABB
+import net.minecraft.util.ARGB
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.level.Level
+import net.minecraft.world.level.chunk.LevelChunk
+import net.minecraft.gizmos.Gizmos
 import org.waste.of.time.Utils.manhattanDistance2d
 import org.waste.of.time.WorldTools.CAPTURE_KEY
 import org.waste.of.time.WorldTools.CONFIG_KEY
@@ -36,19 +36,19 @@ import org.waste.of.time.storage.cache.DataInjectionHandler
 import org.waste.of.time.storage.serializable.BlockEntityLoadable
 import org.waste.of.time.storage.serializable.PlayerStoreable
 import org.waste.of.time.storage.serializable.RegionBasedChunk
-import net.minecraft.component.type.MapIdComponent
+import net.minecraft.world.level.saveddata.maps.MapId
 import java.awt.Color
 
 object Events {
-    fun onChunkLoad(chunk: WorldChunk) {
+    fun onChunkLoad(chunk: LevelChunk) {
         if (!capturing) return
         RegionBasedChunk(chunk).cache()
         BlockEntityLoadable(chunk).emit()
     }
 
-    fun onChunkUnload(chunk: WorldChunk) {
+    fun onChunkUnload(chunk: LevelChunk) {
         if (!capturing) return
-        (HotCache.chunks[chunk.pos] ?: RegionBasedChunk(chunk)).apply {
+        (HotCache.chunks[chunk.position] ?: RegionBasedChunk(chunk)).apply {
             emit()
             flush()
         }
@@ -56,7 +56,7 @@ object Events {
 
     fun onEntityLoad(entity: Entity) {
         if (!capturing) return
-        if (entity is PlayerEntity) {
+        if (entity is Player) {
             PlayerStoreable(entity).cache()
         } else {
             EntityCacheable(entity).cache()
@@ -65,7 +65,7 @@ object Events {
 
     fun onEntityUnload(entity: Entity) {
         if (!capturing) return
-        if (entity !is PlayerEntity) return
+        if (entity !is Player) return
         PlayerStoreable(entity).apply {
             emit()
             flush()
@@ -73,12 +73,12 @@ object Events {
     }
 
     fun onClientTickStart() {
-        if (CAPTURE_KEY.wasPressed() && mc.world != null && mc.currentScreen == null) {
+        if (CAPTURE_KEY.consumeClick() && mc.level != null && mc.screen == null) {
             CaptureManager.toggleCapture()
         }
 
-        if (CONFIG_KEY.wasPressed() && mc.world != null && mc.currentScreen == null) {
-            mc.setScreen(ManagerScreen)
+        if (TAG_NAME.consumeClick() && mc.level != null && mc.screen == null) {
+            mc.preserveCurrentChatScreen(ManagerScreen)
         }
 
         if (!capturing) return
@@ -86,7 +86,7 @@ object Events {
     }
 
     fun onClientJoin() {
-        HotCache.clear()
+        HotCache.clearAllBlockEntities()
         StorageFlow.lastStored = null
         StatisticManager.reset()
         if (config.general.autoDownload) CaptureManager.start()
@@ -94,12 +94,12 @@ object Events {
 
     fun onClientDisconnect() {
         if (!capturing) return
-        CaptureManager.stop()
+        CaptureManager.destroy()
     }
 
-    fun onInteractBlock(world: World, hitResult: BlockHitResult) {
+    fun onInteractBlock(level: Level, hitResult: BlockHitResult) {
         if (!capturing) return
-        val blockEntity = world.getBlockEntity(hitResult.blockPos)
+        val blockEntity = level.getEntity(hitResult.blockPos)
         HotCache.lastInteractedBlockEntity = blockEntity
         HotCache.lastInteractedEntity = null
     }
@@ -112,48 +112,48 @@ object Events {
 
     fun onDebugRenderStart(
         cameraX: Double,
-        cameraY: Double,
+        eyeHeight: Double,
         cameraZ: Double
     ) {
         if (!capturing || !config.render.renderNotYetCachedContainers) return
 
         HotCache.unscannedBlockEntities
-            .forEach { renderBox(it.pos.vec, Color(config.render.unscannedContainerColor)) }
+            .forEach { renderBox(it.position.vec, Color(config.render.unscannedContainerColor)) }
 
         HotCache.loadedBlockEntities
-            .forEach { renderBox(it.value.pos.vec, Color(config.render.fromCacheLoadedContainerColor)) }
+            .forEach { renderBox(it.value.position.vec, Color(config.render.fromCacheLoadedContainerColor)) }
 
         HotCache.unscannedEntities
             .forEach { renderBox(it.entity.entityPos.add(-.5, .0, -.5), Color(config.render.unscannedEntityColor)) }
     }
 
-    private val BlockPos.vec get() = Vec3d(x.toDouble(), y.toDouble(), z.toDouble())
+    private val BlockPos.vec get() = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
 
-    private fun renderBox(vec: Vec3d, color: Color) {
-        val box = Box(vec.x, vec.y, vec.z, vec.x + 1.0, vec.y + 1.0, vec.z + 1.0)
-        val argbColor = ColorHelper.fromFloats(
+    private fun renderBox(vec: Vec3, color: Color) {
+        val box = AABB(vec.x, vec.y, vec.z, vec.x + 1.0, vec.y + 1.0, vec.z + 1.0)
+        val argbColor = ARGB.fromFloats(
             1.0f,
             color.red / 255.0f,
             color.green / 255.0f,
             color.blue / 255.0f
         )
-        GizmoDrawing.box(box, DrawStyle.stroked(argbColor))
+        Gizmos.box(box, GizmoStyle.stroked(argbColor))
     }
 
-    fun onGameMenuScreenInitWidgets(adder: GridWidget.Adder) {
+    fun onGameMenuScreenInitWidgets(add: GridLayout.Adder) {
         val widget = if (capturing) {
             val label = translateHighlight("worldtools.gui.escape.button.finish_download", currentLevelName)
-            ButtonWidget.builder(label) {
-                CaptureManager.stop()
-                mc.setScreen(null)
+            Button.builder(label) {
+                CaptureManager.destroy()
+                mc.preserveCurrentChatScreen(null)
             }.width(204).build()
         } else {
-            ButtonWidget.builder(MessageManager.brand) {
-                MinecraftClient.getInstance().setScreen(ManagerScreen)
+            Button.builder(MessageManager.brand) {
+                Minecraft.getInstance().preserveCurrentChatScreen(ManagerScreen)
             }.width(204).build()
         }
 
-        adder.add(widget, 2)
+        add.add(widget, 2)
     }
 
     fun onScreenRemoved(screen: Screen) {
@@ -167,7 +167,7 @@ object Events {
         if (reason != Entity.RemovalReason.KILLED && reason != Entity.RemovalReason.DISCARDED) return
 
         if (entity is LivingEntity) {
-            if (!entity.isDead) return
+            if (!entity.isDeadOrDying) return
 
             val cacheable = EntityCacheable(entity)
             HotCache.entities.entries.find { (_, entities) ->
@@ -186,7 +186,7 @@ object Events {
         }
     }
 
-    fun onMapStateGet(id: MapIdComponent) {
+    fun onMapStateGet(id: MapId) {
         if (!capturing) return
         // todo: looks like the server does not send a map update packet for container
         HotCache.mapIDs.add(id.id())

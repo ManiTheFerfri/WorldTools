@@ -14,9 +14,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents
-import net.minecraft.client.gui.screen.GameMenuScreen
-import net.minecraft.client.gui.widget.ButtonWidget
-import net.minecraft.text.Text
+import net.minecraft.client.gui.screens.PauseScreen
+import net.minecraft.client.gui.components.Button
+import net.minecraft.network.chat.Component
 import org.waste.of.time.Events
 import org.waste.of.time.WorldTools
 import org.waste.of.time.WorldTools.LOG
@@ -29,7 +29,7 @@ object WorldToolsFabric : ClientModInitializer {
         WorldTools.initialize()
 
         KeyBindingHelper.registerKeyBinding(WorldTools.CAPTURE_KEY)
-        KeyBindingHelper.registerKeyBinding(WorldTools.CONFIG_KEY)
+        KeyBindingHelper.registerKeyBinding(WorldTools.TAG_NAME)
 
         ClientCommandRegistrationCallback.EVENT.register(ClientCommandRegistrationCallback { dispatcher, _ ->
             dispatcher.register()
@@ -75,8 +75,8 @@ object WorldToolsFabric : ClientModInitializer {
                             literal("start")
                                 .executes { CaptureManager.start(); 0 }
                                 .then(
-                                    argument("name", string())
-                                        .executes {CaptureManager.start(it.getArgument("name", String::class.java)); 0 }
+                                    argument("name", text())
+                                        .executes {CaptureManager.start(it.getResource("name", String::class.java)); 0 }
                                 )
                         )
                         .then(

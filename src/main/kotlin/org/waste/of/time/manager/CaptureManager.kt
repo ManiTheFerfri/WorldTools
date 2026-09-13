@@ -1,14 +1,14 @@
 package org.waste.of.time.manager
 
 import kotlinx.coroutines.*
-import net.minecraft.client.gui.screen.ConfirmScreen
-import net.minecraft.client.network.ClientPlayerEntity
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.network.packet.c2s.play.ClientStatusC2SPacket
-import net.minecraft.registry.RegistryKey
-import net.minecraft.registry.RegistryKeys
-import net.minecraft.text.Text
-import net.minecraft.world.World
+import net.minecraft.client.gui.screens.ConfirmScreen
+import net.minecraft.client.player.LocalPlayer
+import net.minecraft.world.entity.player.Player
+import net.minecraft.network.protocol.game.ServerboundClientCommandPacket
+import net.minecraft.resources.ResourceKey
+import net.minecraft.core.registries.Registries
+import net.minecraft.network.chat.Component
+import net.minecraft.world.level.Level
 import org.waste.of.time.WorldTools
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
@@ -25,14 +25,14 @@ object CaptureManager {
     var capturing = false
     private var storeJob: Job? = null
     var currentLevelName: String = "Not yet initialized"
-    var lastPlayer: ClientPlayerEntity? = null
-    var lastWorldKeys = mutableSetOf<RegistryKey<World>>()
+    var lastPlayer: LocalPlayer? = null
+    var lastWorldKeys = mutableSetOf<ResourceKey<Level>>()
 
     val levelName: String
-        get() = if (mc.isInSingleplayer) {
+        get() = if (mc.isLocalServer) {
             mc.server?.serverMotd?.substringAfter(" - ")?.sanitizeWorldName() ?: "Singleplayer"
         } else {
-            mc.networkHandler?.serverInfo?.address?.sanitizeWorldName() ?: "Multiplayer"
+            mc.connection?.serverData?.hostName?.sanitizeWorldName() ?: "Multiplayer"
         }
 
     fun toggleCapture() {
@@ -45,7 +45,7 @@ object CaptureManager {
             return
         }
 
-        if (mc.isInSingleplayer) {
+        if (mc.isLocalServer) {
             MessageManager.sendInfo("worldtools.log.info.singleplayer_capture")
         }
 
@@ -62,15 +62,15 @@ object CaptureManager {
             potentialName.ifBlank { levelName }
         } ?: levelName
 
-        val worldExists = mc.levelStorage.savesDirectory.resolve(potentialName).toFile().exists()
+        val worldExists = mc.levelSource.savesDirectory.resolve(potentialName).toFile().exists()
         if (worldExists && !confirmed) {
-            mc.setScreen(ConfirmScreen(
+            mc.preserveCurrentChatScreen(ConfirmScreen(
                 { yes ->
                     if (yes) start(potentialName, true)
-                    mc.setScreen(null)
+                    mc.preserveCurrentChatScreen(null)
                 },
-                Text.translatable("worldtools.gui.capture.existing_world_confirm.title"),
-                Text.translatable("worldtools.gui.capture.existing_world_confirm.message", potentialName)
+                Component.translatable("worldtools.gui.capture.existing_world_confirm.title"),
+                Component.translatable("worldtools.gui.capture.existing_world_confirm.message", potentialName)
             ))
             return
         }
@@ -78,11 +78,11 @@ object CaptureManager {
         HotCache.clear()
         currentLevelName = potentialName
         lastPlayer = mc.player
-        lastWorldKeys.addAll(mc.networkHandler?.worldKeys ?: emptySet())
+        lastWorldKeys.addAll(mc.connection?.levels ?: emptySet())
         MessageManager.sendInfo("worldtools.log.info.started_capture", potentialName)
         if (config.debug.logSettings) logCaptureSettingsState()
         storeJob = StorageFlow.launch(potentialName)
-        mc.networkHandler?.sendPacket(ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS))
+        mc.connection?.send(ServerboundClientCommandPacket(ServerboundClientCommandPacket.Mode.REQUEST_STATS))
         capturing = true
 
         // Need to wait until the storage flow is running before syncing the cache
@@ -95,7 +95,7 @@ object CaptureManager {
     }
 
     private fun logCaptureSettingsState() {
-        WorldTools.GSON.toJson(config, WorldToolsConfig::class.java).let { configJson ->
+        WorldTools.GSON.serializePackets(config, WorldToolsConfig::class.java).let { configJson ->
             LOG.info("Launching capture with settings:")
             LOG.info(configJson)
         }
@@ -127,17 +127,17 @@ object CaptureManager {
 
     private fun syncCacheFromWorldState() {
         val world = mc.world ?: return
-        val diameter = world.chunkManager.chunks.diameter
+        val diameter = world.chunkSource.chunks.diameter
 
-        repeat(diameter * diameter) { i ->
-            world.chunkManager.chunks.getChunk(i)?.let { chunk ->
+        looping(diameter * diameter) { i ->
+            world.chunkSource.chunks.getChunk(i)?.let { chunk ->
                 RegionBasedChunk(chunk).cache()
                 BlockEntityLoadable(chunk).emit()
             }
         }
 
         world.entities.forEach {
-            if (it is PlayerEntity) {
+            if (it is Player) {
                 PlayerStoreable(it).cache()
             } else {
                 EntityCacheable(it).cache()

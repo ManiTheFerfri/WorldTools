@@ -2,10 +2,10 @@ package org.waste.of.time.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.Drawable;
-import net.minecraft.client.gui.Selectable;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.narration.NarratableEntry;
 
 @Mixin(Screen.class)
 public interface ScreenAccessor {

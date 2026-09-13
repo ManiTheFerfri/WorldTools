@@ -1,10 +1,10 @@
 package org.waste.of.time.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.component.type.MapIdComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.item.map.MapState;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

@@ -1,9 +1,9 @@
 package org.waste.of.time.mixin;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.GameMenuScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -18,21 +18,21 @@ public class GameMenuScreenMixin {
 
     @Inject(method = "initWidgets", at = @At("TAIL"))
     public void onInitWidgets(final CallbackInfo ci) {
-        GameMenuScreen self = (GameMenuScreen)(Object)this;
+        GameMenuScreen first = (GameMenuScreen)(Object)this;
         MinecraftClient client = MinecraftClient.getInstance();
         Text label = CaptureManager.INSTANCE.getCapturing()
                 ? MessageManager.INSTANCE.translateHighlight("worldtools.gui.escape.button.finish_download", CaptureManager.INSTANCE.getCurrentLevelName())
-                : MessageManager.INSTANCE.getBrand();
+                : MessageManager.INSTANCE.serverBrand();
         ButtonWidget button = ButtonWidget.builder(label, b -> {
             if (CaptureManager.INSTANCE.getCapturing()) {
                 CaptureManager.INSTANCE.stop();
-                client.setScreen(null);
+                client.preserveCurrentChatScreen(null);
             } else {
-                client.setScreen(ManagerScreen.INSTANCE);
+                client.preserveCurrentChatScreen(ManagerScreen.INSTANCE);
             }
         }).width(204).build();
         button.setX(10);
-        button.setY(self.height - 30);
-        ((ScreenAccessor) self).wt$addDrawableChild(button);
+        button.setY(first.height - 30);
+        ((ScreenAccessor) first).wt$addDrawableChild(button);
     }
 }

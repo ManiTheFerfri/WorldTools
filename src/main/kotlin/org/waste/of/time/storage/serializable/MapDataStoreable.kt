@@ -1,13 +1,13 @@
 package org.waste.of.time.storage.serializable
 
-import net.minecraft.item.map.MapState
-import net.minecraft.nbt.NbtCompound
-import net.minecraft.nbt.NbtHelper
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData
+import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.NbtUtils
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.NbtOps
-import net.minecraft.text.MutableText
-import net.minecraft.util.WorldSavePath
-import net.minecraft.world.level.storage.LevelStorage
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.world.level.storage.LevelStorageSource
 import org.waste.of.time.WorldTools
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
@@ -21,34 +21,34 @@ import kotlin.io.path.exists
 
 class MapDataStoreable : Storeable() {
     override fun shouldStore() = config.general.capture.maps
-    override val verboseInfo: MutableText
+    override val verboseInfo: MutableComponent
         get() = MessageManager.translateHighlight(
             "worldtools.capture.saved.mapData",
             CaptureManager.currentLevelName
         )
-    override val anonymizedInfo: MutableText
+    override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
     override fun store(
-        session: LevelStorage.Session,
+        session: LevelStorageSource.Session,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
         // this map doesn't seem to be cleared until the world closes
-        val dataDirectory = session.getDirectory(WorldSavePath.ROOT).resolve("data")
+        val dataDirectory = session.getDirectory(LevelResource.ROOT).resolve("data")
         if (!dataDirectory.toFile().exists()) {
             dataDirectory.toFile().mkdirs()
         }
 
         mc.world?.let { world ->
-            world.mapStates?.filter { (component, _) ->
+            world.mapData?.filter { (component, _) ->
                 HotCache.mapIDs.contains(component.id)
             }?.forEach { (component, mapState) ->
                 val id = component.id
-                NbtCompound().apply {
-                    val mapNbt = MapState.CODEC.encodeStart(NbtOps.INSTANCE, mapState)
+                CompoundTag().apply {
+                    val mapNbt = MapItemSavedData.CODEC.encodeStart(NbtOps.INSTANCE, mapState)
                         .getOrThrow { error -> IllegalStateException("Failed to encode map state: $error") }
                     put("data", mapNbt)
-                    NbtHelper.putDataVersion(this)
+                    NbtUtils.putDataVersion(this)
                     val mapFile = dataDirectory.resolve("map_$id${WorldTools.DAT_EXTENSION}")
                     if (!mapFile.exists()) {
                         mapFile.toFile().createNewFile()

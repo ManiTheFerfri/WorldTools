@@ -1,7 +1,7 @@
 package org.waste.of.time.mixin;
 
-import net.minecraft.client.render.Frustum;
-import net.minecraft.client.render.debug.DebugRenderer;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.renderer.debug.DebugRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -14,11 +14,11 @@ public class DebugRendererMixin {
     public void renderInject(
             Frustum frustum,
             double cameraX,
-            double cameraY,
+            double eyeHeight,
             double cameraZ,
             float tickDelta,
             CallbackInfo ci
     ) {
-        Events.INSTANCE.onDebugRenderStart(cameraX, cameraY, cameraZ);
+        Events.INSTANCE.onDebugRenderStart(cameraX, eyeHeight, cameraZ);
     }
 }

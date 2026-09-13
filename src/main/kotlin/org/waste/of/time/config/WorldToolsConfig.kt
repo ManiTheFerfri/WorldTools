@@ -8,7 +8,7 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.CollapsibleObject
 import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.Tooltip
 import me.shedaniel.autoconfig.annotation.ConfigEntry.Category
 import me.shedaniel.autoconfig.annotation.ConfigEntry.Gui.Excluded
-import net.minecraft.entity.boss.BossBar
+import net.minecraft.world.BossEvent
 
 /**
  * See [Cloth Config Documentation](https://shedaniel.gitbook.io/cloth-config/auto-config/creating-a-config-class)
@@ -82,7 +82,7 @@ class WorldToolsConfig : ConfigData {
         class WorldGenerator {
             @Tooltip
             var type = GeneratorType.DEFAULT
-            val bonusChest = false
+            val generateBonusChest = false
             val generateFeatures = false
             var seed = 0L
 
@@ -120,7 +120,7 @@ class WorldToolsConfig : ConfigData {
 
     class Entity {
         @CollapsibleObject(startExpanded = true)
-        val behavior = Behavior()
+        val damageCalculator = Behavior()
 
         @CollapsibleObject(startExpanded = true)
         val metadata = Metadata()
@@ -133,7 +133,7 @@ class WorldToolsConfig : ConfigData {
             var modifyEntityBehavior = false
 
             var noAI = true
-            var noGravity = true
+            var hoversInPlace = true
             var invulnerable = true
             var silent = true
         }
@@ -146,7 +146,7 @@ class WorldToolsConfig : ConfigData {
             // ToDo: Add censoring options
 
             @Excluded
-            var names = false
+            var pathToRoot = false
             @Excluded
             var owner = false
             @Tooltip
@@ -166,10 +166,10 @@ class WorldToolsConfig : ConfigData {
         var fromCacheLoadedEntityColor = 0xFFA500
         @ConfigEntry.ColorPicker
         var accentColor = 0xA2FF4C
-        var captureBarColor = BossBar.Color.PINK
-        var captureBarStyle = BossBar.Style.NOTCHED_10
-        var progressBarColor = BossBar.Color.GREEN
-        var progressBarStyle = BossBar.Style.PROGRESS
+        var captureBarColor = BossEvent.Color.PINK
+        var captureBarStyle = BossEvent.Style.NOTCHED_10
+        var progressBarColor = BossEvent.Color.GREEN
+        var progressBarStyle = BossEvent.Style.PROGRESS
         @ConfigEntry.BoundedDiscrete(min = 50, max = 60000)
         var progressBarTimeout = 3000L
     }

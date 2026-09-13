@@ -1,12 +1,12 @@
 package org.waste.of.time.storage.serializable
 
-import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.world.entity.player.Player
 import net.minecraft.nbt.NbtIo
-import net.minecraft.storage.NbtWriteView
-import net.minecraft.text.MutableText
-import net.minecraft.util.ErrorReporter
+import net.minecraft.world.level.storage.TagValueOutput
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.util.ProblemReporter
 import net.minecraft.util.Util
-import net.minecraft.util.WorldSavePath
+import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorage.Session
 import org.waste.of.time.Utils.asString
 import org.waste.of.time.WorldTools
@@ -21,19 +21,19 @@ import java.io.File
 import java.nio.file.Path
 
 data class PlayerStoreable(
-    val player: PlayerEntity
+    val player: Player
 ) : Cacheable, Storeable() {
     override fun shouldStore() = config.general.capture.players
 
-    override val verboseInfo: MutableText
+    override val verboseInfo: MutableComponent
         get() = translateHighlight(
             "worldtools.capture.saved.player",
             player.name,
-            player.entityPos.asString(),
+            player.entityPos.debugInfo(),
             player.entityWorld.registryKey.value.path
         )
 
-    override val anonymizedInfo: MutableText
+    override val anonymizedInfo: MutableComponent
         get() = translateHighlight(
             "worldtools.capture.saved.player.anonymized",
             player.name,
@@ -50,31 +50,31 @@ data class PlayerStoreable(
 
     override fun store(session: Session, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
         savePlayerData(player, session)
-        session.createSaveHandler()
+        session.createPlayerStorage()
         StatisticManager.players++
         StatisticManager.dimensions.add(player.entityWorld.registryKey.value.path)
     }
 
-    private fun savePlayerData(player: PlayerEntity, session: Session) {
+    private fun savePlayerData(player: Player, session: Session) {
         try {
-            val playerDataDir = session.getDirectory(WorldSavePath.PLAYERDATA).toFile()
-            playerDataDir.mkdirs()
+            val playerDir = session.getDirectory(LevelResource.PLAYER_DATA_DIR).toFile()
+            playerDir.mkdirs()
 
-            val writeView = NbtWriteView.create(ErrorReporter.EMPTY)
+            val writeView = TagValueOutput.create(ProblemReporter.DISCARDING)
             player.writeData(writeView)
-            val playerNbt = writeView.nbt.apply {
+            val playerNbt = writeView.output.apply {
                 if (config.entity.censor.lastDeathLocation) {
                     remove("LastDeathLocation")
                 }
             }
             
-            val newPlayerFile = File.createTempFile(player.uuidAsString + "-", ".dat", playerDataDir).toPath()
+            val newPlayerFile = File.createTempFile(player.uuidAsString + "-", ".dat", playerDir).toPath()
             NbtIo.writeCompressed(playerNbt, newPlayerFile)
-            val currentFile = File(playerDataDir, player.uuidAsString + ".dat").toPath()
-            val backupFile = File(playerDataDir, player.uuidAsString + ".dat_old").toPath()
-            Util.backupAndReplace(currentFile, newPlayerFile, backupFile)
+            val currentFile = File(playerDir, player.uuidAsString + ".dat").toPath()
+            val tempFile = File(playerDir, player.uuidAsString + ".dat_old").toPath()
+            Util.backupAndReplace(currentFile, newPlayerFile, tempFile)
         } catch (e: Exception) {
-            WorldTools.LOG.warn("Failed to save player data for {}", player.name.string)
+            WorldTools.LOG.warn("Failed to save player data for {}", player.name.text)
         }
     }
 }

@@ -5,7 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
-import net.minecraft.util.path.SymlinkValidationException
+import net.minecraft.world.level.validation.ContentValidationException
 import org.waste.of.time.WorldTools
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.mc
@@ -21,12 +21,12 @@ import kotlin.time.Duration
 import kotlin.time.measureTime
 
 object StorageFlow {
-    private const val MAX_BUFFER_SIZE = 10000
+    private const val MAX_BYTES = 10000
     var lastStoredTimestamp: Long = 0
     var lastStored: Storeable? = null
     var lastStoredTimeNeeded: Duration = Duration.ZERO
 
-    private val sharedFlow = MutableSharedFlow<Storeable>(extraBufferCapacity = MAX_BUFFER_SIZE)
+    private val sharedFlow = MutableSharedFlow<Storeable>(extraBufferCapacity = MAX_BYTES)
 
     fun emit(storeable: Storeable) {
         if (sharedFlow.tryEmit(storeable)) return
@@ -40,7 +40,7 @@ object StorageFlow {
 
         try {
             LOG.info("Started caching")
-            mc.levelStorage.createSession(levelName).use { openSession ->
+            mc.levelSource.createSession(levelName).increaseUses { openSession ->
                 sharedFlow.collect { storeable ->
                     if (!storeable.shouldStore()) {
                         return@collect
@@ -54,7 +54,7 @@ object StorageFlow {
 
                     if (shouldSaveLastStored) {
                         lastStored = storeable
-                        lastStoredTimestamp = System.currentTimeMillis()
+                        lastStoredTimestamp = System.currentTimeMs()
                         lastStoredTimeNeeded = time
                     }
 
@@ -68,8 +68,8 @@ object StorageFlow {
         } catch (e: IOException) {
             LOG.error("IOException: Failed to create session for $levelName", e)
             MessageManager.sendError("worldtools.log.error.failed_to_create_session", levelName, e.localizedMessage)
-        } catch (e: SymlinkValidationException) {
-            LOG.error("SymlinkValidationException: Failed to create session for $levelName", e)
+        } catch (e: ContentValidationException) {
+            LOG.error("ContentValidationException: Failed to create session for $levelName", e)
             MessageManager.sendError("worldtools.log.error.failed_to_create_session", levelName, e.localizedMessage)
         } catch (e: CancellationException) {
             LOG.info("Canceled caching thread")

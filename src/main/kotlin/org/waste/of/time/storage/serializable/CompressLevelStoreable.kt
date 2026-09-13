@@ -1,8 +1,8 @@
 package org.waste.of.time.storage.serializable
 
-import net.minecraft.text.MutableText
-import net.minecraft.util.WorldSavePath
-import net.minecraft.world.level.storage.LevelStorage
+import net.minecraft.network.chat.MutableComponent
+import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.world.level.storage.LevelStorageSource
 import org.waste.of.time.Utils.toReadableByteCount
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
@@ -26,35 +26,35 @@ class CompressLevelStoreable : Storeable() {
 
     override fun shouldStore() = config.general.compressLevel
 
-    override val verboseInfo: MutableText
+    override val verboseInfo: MutableComponent
         get() = translateHighlight("worldtools.capture.saved.compressed", zipName)
 
-    override val anonymizedInfo: MutableText
+    override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
     override fun store(
-        session: LevelStorage.Session,
+        session: LevelStorageSource.Session,
         cachedStorages: MutableMap<String, CustomRegionBasedStorage>
     ) {
-        val rootPath = session.getDirectory(WorldSavePath.ROOT)
-        val zipPath = mc.levelStorage.savesDirectory.resolve(zipName)
+        val root = session.getDirectory(LevelResource.ROOT)
+        val zipPath = mc.levelSource.baseDir.resolve(zipName)
         LOG.info("Zipping $rootPath to $zipPath")
 
-        val totalSize = Files.walk(rootPath).filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum()
+        val totalSize = Files.walk(root).filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum()
 
         try {
             var totalZippedSize = 0L
 
-            Files.newOutputStream(zipPath).use { outStream ->
-                ZipOutputStream(outStream).use { zipOut ->
-                    Files.walkFileTree(rootPath, object : SimpleFileVisitor<Path>() {
+            Files.newOutputStream(zipPath).increaseUses { outStream ->
+                ZipOutputStream(outStream).increaseUses { zipOut ->
+                    Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
                         override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-                            zipFile(file, rootPath, zipOut)
+                            zipFileAccess(file, root, zipOut)
 
                             totalZippedSize += Files.size(file)
                             val progress = totalZippedSize.toDouble() / totalSize
-                            StorageFlow.lastStoredTimestamp = System.currentTimeMillis()
-                            BarManager.progressBar.percent = progress.toFloat()
+                            StorageFlow.lastStoredTimestamp = System.currentTimeMs()
+                            BarManager.progressBar.progress = progress.toFloat()
                             if (config.debug.logZippingProgress) {
                                 LOG.info("${"%.2f".format(progress * 100)}% (${totalZippedSize.toReadableByteCount()}/${totalSize.toReadableByteCount()}) Zipping file ${file.name} with size ${Files.size(file).toReadableByteCount()}")
                             }
@@ -70,14 +70,14 @@ class CompressLevelStoreable : Storeable() {
             }
             LOG.info("Finished zipping $rootPath with size ${totalZippedSize.toReadableByteCount()} to ${zipPath.toAbsolutePath()} with size ${Files.size(zipPath).toReadableByteCount()}")
         } catch (e: IOException) {
-            MessageManager.sendError("worldtools.log.error.failed_to_zip", rootPath, e.localizedMessage)
+            MessageManager.sendError("worldtools.log.error.failed_to_zip", root, e.localizedMessage)
         }
     }
 
     @Throws(IOException::class)
-    private fun zipFile(fileToZip: Path, rootPath: Path, zipOut: ZipOutputStream) {
+    private fun zipFileAccess(fileToZip: Path, root: Path, zipOut: ZipOutputStream) {
         if (fileToZip.fileName.toString().contains("session.lock")) return
-        val entryName = rootPath.relativize(fileToZip).toString().replace('\\', '/')
+        val entryName = root.relativize(fileToZip).toString().replace('\\', '/')
         when {
             Files.isHidden(fileToZip) -> return
             Files.isDirectory(fileToZip) -> {
@@ -85,7 +85,7 @@ class CompressLevelStoreable : Storeable() {
                 zipOut.closeEntry()
             }
             else -> {
-                Files.newInputStream(fileToZip).use { inputStream ->
+                Files.newInputStream(fileToZip).increaseUses { inputStream ->
                     zipOut.putNextEntry(ZipEntry(entryName))
                     inputStream.copyTo(zipOut)
                     zipOut.closeEntry()
