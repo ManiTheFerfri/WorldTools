@@ -11,11 +11,11 @@ import org.waste.of.time.manager.CaptureManager.currentLevelName
 import org.waste.of.time.manager.CaptureManager.levelName
 
 object ManagerScreen : Screen(Component.translatable("worldtools.gui.manager.title")) {
-    private lateinit var worldNameTextEntryWidget: TextFieldWidget
-    private lateinit var titleWidget: TextWidget
-    private lateinit var downloadButton: ButtonWidget
-    private lateinit var configButton: ButtonWidget
-    private lateinit var cancelButton: ButtonWidget
+    private lateinit var worldNameTextEntryWidget: EditBox
+    private lateinit var titleWidget: StringWidget
+    private lateinit var downloadButton: Button
+    private lateinit var configButton: Button
+    private lateinit var cancelButton: Button
     private const val BUTTON_WIDTH = 90
 
     override fun init() {
@@ -37,8 +37,8 @@ object ManagerScreen : Screen(Component.translatable("worldtools.gui.manager.tit
     }
 
     private fun setupTitle() {
-        titleWidget = TextWidget(Component.translatable("worldtools.gui.manager.title"), font)
-        SimplePositioningWidget.setBase(titleWidget, 0, 0, width, height, 0.5f, 0.01f)
+        titleWidget = StringWidget(Component.translatable("worldtools.gui.manager.title"), font)
+        FrameLayout.setBase(titleWidget, 0, 0, width, height, 0.5f, 0.01f)
         addDrawableChild(titleWidget)
     }
 
@@ -66,7 +66,7 @@ object ManagerScreen : Screen(Component.translatable("worldtools.gui.manager.tit
         add.add(downloadButton, 1)
 
         entryGridWidget.refreshPositions()
-        SimplePositioningWidget.setBase(entryGridWidget, 0, titleWidget.y, width, height, 0.5f, 0.05f)
+        FrameLayout.setBase(entryGridWidget, 0, titleWidget.y, width, height, 0.5f, 0.05f)
         entryGridWidget.visitWidgets(this::addDrawableChild)
     }
 
@@ -84,14 +84,14 @@ object ManagerScreen : Screen(Component.translatable("worldtools.gui.manager.tit
         bottomAdder.add(cancelButton, 1)
 
         bottomGridWidget.refreshPositions()
-        SimplePositioningWidget.setBase(bottomGridWidget, 0, 0, width, height, 0.5f, .95f)
+        FrameLayout.setBase(bottomGridWidget, 0, 0, width, height, 0.5f, .95f)
         bottomGridWidget.visitWidgets(this::addDrawableChild)
     }
 
-    private fun createGridWidget() = GridWidget().apply {
+    private fun createGridWidget() = GridLayout().apply {
         mainPositioner.padding(4, 4, 4, 4)
     }
 
-    private fun createButton(textKey: String, onClick: (ButtonWidget) -> Unit) =
-        ButtonWidget.Builder(Component.translatable(textKey), onClick).width(BUTTON_WIDTH).build()
+    private fun createButton(textKey: String, onClick: (Button) -> Unit) =
+        Button.Builder(Component.translatable(textKey), onClick).width(BUTTON_WIDTH).build()
 }

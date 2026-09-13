@@ -27,7 +27,7 @@ object DataInjectionHandler {
 
     private fun handleEntity(screen: Screen, entity: Entity) {
         when (screen) {
-            is GenericContainerScreen -> {
+            is ContainerScreen -> {
                 (entity as? ContainerEntity)?.dataToVehicle(screen)
             }
             is HopperScreen -> {
@@ -38,7 +38,7 @@ object DataInjectionHandler {
         entity.markScanned()
     }
 
-    private fun ContainerEntity.dataToVehicle(screen: GenericContainerScreen) {
+    private fun ContainerEntity.dataToVehicle(screen: ContainerScreen) {
         screen.getContainerSlots().forEach {
             setStack(it.index, it.stack)
         }
@@ -52,7 +52,7 @@ object DataInjectionHandler {
 
     private fun handleBlockEntity(screen: Screen, blockEntity: BlockEntity, ) {
         when (screen) {
-            is GenericContainerScreen -> {
+            is ContainerScreen -> {
                 when (blockEntity) {
                     is ChestBlockEntity -> blockEntity.dataToChest(screen)
                     is BarrelBlockEntity -> blockEntity.dataToBarrelBlock(screen)
@@ -60,7 +60,7 @@ object DataInjectionHandler {
                 }
             }
 
-            is Generic3x3ContainerScreen -> {
+            is DispenserScreen -> {
                 (blockEntity as? DispenserBlockEntity)?.dataToDispenserOrDropper(screen)
             }
 
@@ -103,7 +103,7 @@ object DataInjectionHandler {
         blockEntity.markScanned()
     }
 
-    private fun dataToEnderChest(screen: GenericContainerScreen) {
+    private fun dataToEnderChest(screen: ContainerScreen) {
         if (mc.isLocalServer) return
         val inventory = screen.screenHandler.inventory as? SimpleContainer ?: return
         if (inventory.size() != 27) return
@@ -120,7 +120,7 @@ object DataInjectionHandler {
         }
     }
 
-    private fun BarrelBlockEntity.dataToBarrelBlock(screen: GenericContainerScreen) {
+    private fun BarrelBlockEntity.dataToBarrelBlock(screen: ContainerScreen) {
         screen.getContainerSlots().forEach {
             setStack(it.index, it.stack)
         }
@@ -132,7 +132,7 @@ object DataInjectionHandler {
         }
     }
 
-    private fun ChestBlockEntity.dataToChest(screen: GenericContainerScreen) {
+    private fun ChestBlockEntity.dataToChest(screen: ContainerScreen) {
         val facing = blockState[ChestBlock.FACING] ?: return
         val type = blockState[ChestBlock.TYPE] ?: return
         val containerSlots = screen.getContainerSlots()
@@ -177,7 +177,7 @@ object DataInjectionHandler {
         }
     }
 
-    private fun DispenserBlockEntity.dataToDispenserOrDropper(screen: Generic3x3ContainerScreen) {
+    private fun DispenserBlockEntity.dataToDispenserOrDropper(screen: DispenserScreen) {
         screen.getContainerSlots().forEach {
             setStack(it.index, it.stack)
         }
@@ -206,5 +206,5 @@ object DataInjectionHandler {
         }
     }
 
-    private fun HandledScreen<*>.getContainerSlots() = screenHandler.slots.filter { it.inventory !is Inventory }
+    private fun AbstractContainerScreen<*>.getContainerSlots() = screenHandler.slots.filter { it.inventory !is Inventory }
 }

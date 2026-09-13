@@ -49,7 +49,7 @@ class LevelDataStoreable : Storeable() {
         val dataNbt = serializeLevelData()
         // if we save an empty level.dat, clients will crash when opening the SP worlds screen
         if (dataNbt.isEmpty) throw RuntimeException("Failed to serialize level data")
-        val levelNbt = NbtCompound().apply {
+        val levelNbt = CompoundTag().apply {
             put("Data", dataNbt)
         }
 
@@ -72,12 +72,12 @@ class LevelDataStoreable : Storeable() {
     /**
      * See [net.minecraft.world.level.LevelProperties.updateProperties]
      */
-    private fun serializeLevelData() = NbtCompound().apply {
+    private fun serializeLevelData() = CompoundTag().apply {
         val player = CaptureManager.lastPlayer ?: mc.player ?: return@apply
 
         mc.connection?.brand?.let {
-            put("ServerBrands", NbtList().apply {
-                add(NbtString.of(it))
+            put("ServerBrands", ListTag().apply {
+                add(StringTag.of(it))
             })
         }
 
@@ -85,14 +85,14 @@ class LevelDataStoreable : Storeable() {
 
         // skip removed features
 
-        put("Version", NbtCompound().apply {
+        put("Version", CompoundTag().apply {
             putString("Name", SharedConstants.getLaunchedVersion().name())
             putInt("Id", SharedConstants.getLaunchedVersion().dataVersion().id())
             putBoolean("Snapshot", !SharedConstants.getLaunchedVersion().stable())
             putString("Series", SharedConstants.getLaunchedVersion().dataVersion().series())
         })
 
-        NbtHelper.putDataVersion(this)
+        NbtUtils.putDataVersion(this)
 
         put("WorldGenSettings", generatorMockNbt())
         mc.connection?.listedPlayers?.find {
@@ -131,9 +131,9 @@ class LevelDataStoreable : Storeable() {
         val gameRules = player.entityWorld.server?.worldData?.getGameRules()
         val rulesNbt = if (gameRules != null) {
             val codec = net.minecraft.world.rule.GameRules.createCodec(player.entityWorld.server!!.worldData.dataConfiguration.enabledFeatures)
-            codec.encodeStart(NbtOps.INSTANCE, gameRules).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as NbtCompound
+            codec.encodeStart(NbtOps.INSTANCE, gameRules).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
         } else {
-            NbtCompound()
+            CompoundTag()
         }
         put("GameRules", rulesNbt)
         val playerWriteView = TagValueOutput.create(ProblemReporter.DISCARDING)
@@ -143,16 +143,16 @@ class LevelDataStoreable : Storeable() {
             putString("Dimension", "minecraft:${player.entityWorld.registryKey.value.path}")
         })
 
-        put("DragonFight", NbtCompound()) // not sure
-        put("CustomBossEvents", NbtCompound()) // not sure
-        put("ScheduledEvents", NbtList()) // not sure
+        put("DragonFight", CompoundTag()) // not sure
+        put("CustomBossEvents", CompoundTag()) // not sure
+        put("ScheduledEvents", ListTag()) // not sure
         putInt("WanderingTraderSpawnDelay", 0) // not sure
         putInt("WanderingTraderSpawnChance", 0) // not sure
 
         // skip wandering trader id
     }
 
-    private fun GameRules.genGameRules() = NbtCompound().also { output ->
+    private fun GameRules.genGameRules() = CompoundTag().also { output ->
         this.streamRules().forEach { rule ->
             output.putString(rule.id.path, this.getRuleValueName(rule))
         }
@@ -172,14 +172,14 @@ class LevelDataStoreable : Storeable() {
         putString(GameRules.ADVANCE_WEATHER.id.path, roomDefinition.doWeatherCycle.toString())
     }
 
-    private fun generatorMockNbt() = NbtCompound().apply {
+    private fun generatorMockNbt() = CompoundTag().apply {
         putByte("bonus_chest", config.world.worldGenerator.generateBonusChest.toByte())
         putLong("seed", config.world.worldGenerator.seed)
         putByte("generate_features", config.world.worldGenerator.generateFeatures.toByte())
 
-        put("dimensions", NbtCompound().apply {
+        put("dimensions", CompoundTag().apply {
             CaptureManager.lastWorldKeys.forEach { key ->
-                put("minecraft:${key.value.path}", NbtCompound().apply {
+                put("minecraft:${key.value.path}", CompoundTag().apply {
                     put("generator", generateGenerator(key.value.path))
 
                     when (key.value.path) {
@@ -198,7 +198,7 @@ class LevelDataStoreable : Storeable() {
         })
     }
 
-    private fun generateGenerator(path: String) = NbtCompound().apply {
+    private fun generateGenerator(path: String) = CompoundTag().apply {
         when (config.world.worldGenerator.type) {
             GeneratorType.VOID -> voidGenerator()
             GeneratorType.DEFAULT -> defaultGenerator(path)
@@ -206,26 +206,26 @@ class LevelDataStoreable : Storeable() {
         }
     }
 
-    private fun NbtCompound.voidGenerator() {
-        put("settings", NbtCompound().apply {
+    private fun CompoundTag.voidGenerator() {
+        put("settings", CompoundTag().apply {
             putByte("features", 1)
             putString("biome", "minecraft:the_void")
-            put("layers", NbtList().apply {
-                add(NbtCompound().apply {
+            put("layers", ListTag().apply {
+                add(CompoundTag().apply {
                     putString("block", "minecraft:air")
                     putInt("height", 1)
                 })
             })
-            put("structure_overrides", NbtList())
+            put("structure_overrides", ListTag())
             putByte("lakes", 0)
         })
         putString("type", "minecraft:flat")
     }
 
-    private fun NbtCompound.defaultGenerator(path: String) {
+    private fun CompoundTag.defaultGenerator(path: String) {
         when (path) {
             "the_nether" -> {
-                put("biome_source", NbtCompound().apply {
+                put("biome_source", CompoundTag().apply {
                     putString("preset", "minecraft:nether")
                     putString("type", "minecraft:multi_noise")
                 })
@@ -233,14 +233,14 @@ class LevelDataStoreable : Storeable() {
                 putString("type", "minecraft:noise")
             }
             "the_end" -> {
-                put("biome_source", NbtCompound().apply {
+                put("biome_source", CompoundTag().apply {
                     putString("type", "minecraft:the_end")
                 })
                 putString("settings", "minecraft:end")
                 putString("type", "minecraft:noise")
             }
             else -> {
-                put("biome_source", NbtCompound().apply {
+                put("biome_source", CompoundTag().apply {
                     putString("preset", "minecraft:overworld")
                     putString("type", "minecraft:multi_noise")
                 })
@@ -250,28 +250,28 @@ class LevelDataStoreable : Storeable() {
         }
     }
 
-    private fun NbtCompound.flatGenerator() {
-        put("settings", NbtCompound().apply {
+    private fun CompoundTag.flatGenerator() {
+        put("settings", CompoundTag().apply {
             putString("biome", "minecraft:plains")
             putByte("features", 0)
             putByte("lakes", 0)
-            put("layers", NbtList().apply {
-                add(NbtCompound().apply {
+            put("layers", ListTag().apply {
+                add(CompoundTag().apply {
                     putString("block", "minecraft:bedrock")
                     putInt("height", 1)
                 })
-                add(NbtCompound().apply {
+                add(CompoundTag().apply {
                     putString("block", "minecraft:dirt")
                     putInt("height", 2)
                 })
-                add(NbtCompound().apply {
+                add(CompoundTag().apply {
                     putString("block", "minecraft:grass_block")
                     putInt("height", 1)
                 })
             })
-            put("structure_overrides", NbtList().apply {
-                add(NbtString.of("minecraft:strongholds"))
-                add(NbtString.of("minecraft:villages"))
+            put("structure_overrides", ListTag().apply {
+                add(StringTag.of("minecraft:strongholds"))
+                add(StringTag.of("minecraft:villages"))
             })
         })
         putString("type", "minecraft:flat")

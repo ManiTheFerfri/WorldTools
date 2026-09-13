@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "2.4.20"
-    id("net.fabricmc.fabric-loom") version "${project.property("loom_version")}"
+    id("net.fabricmc.fabric-loom") version "1.17.20"
 }
 
 group = project.property("maven_group") as String
@@ -22,13 +22,13 @@ repositories {
 
 dependencies {
     minecraft("com.mojang:minecraft:${project.property("minecraft_version")}")
-    modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api_version")}")
-    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("fabric_kotlin_version")}")
-    modApi("me.shedaniel.cloth:cloth-config-fabric:${project.property("cloth_config_version")}") {
+    implementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
+    implementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api_version")}")
+    implementation("net.fabricmc:fabric-language-kotlin:${project.property("fabric_kotlin_version")}")
+    implementation("me.shedaniel.cloth:cloth-config-fabric:${project.property("cloth_config_version")}") {
         exclude(group = "net.fabricmc.fabric-api", module = "fabric-api")
     }
-    modCompileOnly("com.terraformersmc:modmenu:${project.property("mod_menu_version")}")
+    compileOnly("com.terraformersmc:modmenu:${project.property("mod_menu_version")}")
 }
 
 tasks.processResources {

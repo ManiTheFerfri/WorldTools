@@ -82,7 +82,7 @@ object CaptureManager {
         MessageManager.sendInfo("worldtools.log.info.started_capture", potentialName)
         if (config.debug.logSettings) logCaptureSettingsState()
         storeJob = StorageFlow.launch(potentialName)
-        mc.connection?.send(ServerboundClientCommandPacket(ServerboundClientCommandPacket.Mode.REQUEST_STATS))
+        mc.connection?.schedule(ServerboundClientCommandPacket(ServerboundClientCommandPacket.Mode.REQUEST_STATS))
         capturing = true
 
         // Need to wait until the storage flow is running before syncing the cache
