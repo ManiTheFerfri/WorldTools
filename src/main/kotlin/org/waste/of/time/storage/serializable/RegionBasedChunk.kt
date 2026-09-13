@@ -13,7 +13,6 @@ import net.minecraft.world.level.LightLayer
 import net.minecraft.world.level.chunk.DataLayer
 import net.minecraft.world.level.chunk.LevelChunk
 import net.minecraft.world.level.chunk.LevelChunkSection
-import net.minecraft.world.level.chunk.PalettedContainer
 import net.minecraft.world.level.chunk.PalettedContainerFactory
 import net.minecraft.world.level.chunk.UpgradeData
 import net.minecraft.world.level.chunk.storage.SerializableChunkData
@@ -173,10 +172,11 @@ open class RegionBasedChunk(
             add(CompoundTag().apply {
                 if (inSection) {
                     val chunkSection = chunk.getSection(sectionCoord)
-                    // PalettedContainer contains a lock that is acquired during read/write operations.
-                    // Use acquire()/release() for safe concurrent reads; captured chunks are no longer written to.
-                    (chunkSection.getStates() as PalettedContainer<*>).acquire()
-                    (chunkSection.getBiomes() as PalettedContainer<*>).acquire()
+                    // Do NOT manually acquire()/release() the PalettedContainer lock here.
+                    // The codec's encode path (PalettedContainer.pack()) acquires and releases
+                    // the ThreadingDetector semaphore itself, and the semaphore is NOT reentrant:
+                    // an outer acquire() makes pack()'s inner acquire() block forever on our own
+                    // permit, deadlocking the storage coroutine (stop() then never completes).
                     put(
                         "block_states",
                         blockStatesCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getStates()).getOrThrow()
@@ -185,8 +185,6 @@ open class RegionBasedChunk(
                         "biomes",
                         biomeCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getBiomes()).getOrThrow()
                     )
-                    (chunkSection.getStates() as PalettedContainer<*>).release()
-                    (chunkSection.getBiomes() as PalettedContainer<*>).release()
                 }
                 if (blockLightSection != null && !blockLightSection.isEmpty()) {
                     putByteArray(SerializableChunkData.BLOCK_LIGHT_TAG, blockLightSection.getData())
