@@ -45,7 +45,9 @@ class StatisticStoreable : Storeable() {
                             typeObject.addProperty(it, value)
                         }
                     }
-                    add(BuiltInRegistries.STAT_TYPE.getId(type).toString(), typeObject)
+                    // 26.2: Registry.getId returns the raw int id (json keys became "0".."8",
+                    // "Unknown registry key ... minecraft:7" on load) — use getKey for the Identifier
+                    add(BuiltInRegistries.STAT_TYPE.getKey(type).toString(), typeObject)
                 }
             })
             addProperty("DataVersion", CURRENT_DATA_VERSION)

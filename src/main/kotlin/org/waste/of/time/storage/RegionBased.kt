@@ -14,13 +14,11 @@ abstract class RegionBased(
 ) : Storeable() {
     val dimension: String = level.dimension().identifier().path
 
+    // 26.2 save layout: DimensionType.getStorageFolder resolves EVERY dimension against
+    // <save>/dimensions/<namespace>/<path>/ (including the overworld; DIM-1/DIM1 are gone).
+    // level.dimension() is the ResourceKey, e.g. minecraft:overworld
     private val dimensionPath
-        get() = when (dimension) {
-            "overworld" -> ""
-            "the_nether" -> "DIM-1/"
-            "the_end" -> "DIM1/"
-            else -> "dimensions/minecraft/$dimension/"
-        }
+        get() = "dimensions/" + level.dimension().identifier().toString().replace(':', '/') + "/"
 
     abstract fun compound(): CompoundTag
 
