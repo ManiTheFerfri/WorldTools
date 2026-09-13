@@ -4,6 +4,7 @@ import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.EntityType
 import net.minecraft.world.level.storage.TagValueOutput
 import net.minecraft.util.ProblemReporter
+import net.minecraft.util.datafix.DataFixTypes
 import org.waste.of.time.Utils.toByte
 import org.waste.of.time.WorldTools.TIMESTAMP_KEY
 import org.waste.of.time.WorldTools.config
@@ -12,10 +13,10 @@ import org.waste.of.time.storage.Cacheable
 data class EntityCacheable(
     val entity: Entity
 ) : Cacheable {
-    fun compound() = TagValueOutput.create(ProblemReporter.DISCARDING).let { writeView ->
+    fun compound() = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.level().registryAccess()).let { writeView ->
         // saveSelfNbt has a check for RemovalReason.DISCARDED
-        EntityType.getId(entity.type)?.let { writeView.putString(Entity.TAG_ID, it.toString()) }
-        entity.writeData(writeView)
+        EntityType.getKey(entity.type)?.let { writeView.putString(Entity.TAG_ID, it.toString()) }
+        entity.saveWithoutId(writeView)
 
         if (config.entity.damageCalculator.modifyEntityBehavior) {
             writeView.putByte("NoAI", config.entity.damageCalculator.noAI.toByte())
@@ -25,14 +26,14 @@ data class EntityCacheable(
         }
 
         if (config.entity.metadata.captureTimestamp) {
-            writeView.putLong(TIMESTAMP_KEY, System.currentTimeMs())
+            writeView.putLong(TIMESTAMP_KEY, System.currentTimeMillis())
         }
         
-        writeView.output
+        writeView.buildResult()
     }
 
     override fun cache() {
-        HotCache.entities.computeIfAbsent(entity.chunkPosition) { mutableSetOf() }.apply {
+        HotCache.entities.computeIfAbsent(entity.chunkPosition()) { mutableSetOf() }.apply {
             // Remove the entity if it already exists to update it
             removeIf { it.entity.uuid == entity.uuid }
             add(this@EntityCacheable)
@@ -40,7 +41,7 @@ data class EntityCacheable(
     }
 
     override fun flush() {
-        val chunkPos = entity.chunkPosition
+        val chunkPos = entity.chunkPosition()
         HotCache.entities[chunkPos]?.let { list ->
             list.remove(this)
             if (list.isEmpty()) {

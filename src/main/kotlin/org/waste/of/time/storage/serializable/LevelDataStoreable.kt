@@ -78,7 +78,7 @@ class LevelDataStoreable : Storeable() {
         mc.connection?.let { listener ->
             // serverBrand is protected in 26.2; read via connection brand channel info
         }
-        mc.connection?.serverBrand?.let {
+        mc.connection?.serverBrand()?.let {
             put("ServerBrands", ListTag().apply {
                 add(StringTag.valueOf(it))
             })

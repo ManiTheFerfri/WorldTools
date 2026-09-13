@@ -21,7 +21,7 @@ public class ClientWorldMixin {
         Events.INSTANCE.onEntityRemoved(entity, removalReason);
     }
 
-    @Inject(method = "getMapState", at = @At("HEAD"))
+    @Inject(method = "getMapData", at = @At("HEAD"))
     public void getMapStateInject(MapId id, CallbackInfoReturnable<MapItemSavedData> cir) {
         Events.INSTANCE.onMapStateGet(id);
     }

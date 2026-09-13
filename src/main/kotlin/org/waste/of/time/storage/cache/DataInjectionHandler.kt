@@ -95,8 +95,8 @@ object DataInjectionHandler {
     }
 
     private fun dataToEnderChest(screen: AbstractContainerScreen<*>) {
-        if (mc.isLocalServer) return
-        val inventory = screen.menu.inventory as? SimpleContainer ?: return
+        if (mc.isLocalServer()) return
+        val inventory = screen.menu.slots.firstOrNull()?.container as? SimpleContainer ?: return
         if (inventory.containerSize != 27) return
         mc.player?.enderChestInventory = PlayerEnderChestContainer().apply {
             for (i in 0 until inventory.containerSize) {
@@ -124,8 +124,8 @@ object DataInjectionHandler {
     }
 
     private fun ChestBlockEntity.dataToChest(screen: AbstractContainerScreen<*>) {
-        val facing = blockState[ChestBlock.FACING] ?: return
-        val type = blockState[ChestBlock.TYPE] ?: return
+        val facing = blockState.getOptionalValue(ChestBlock.FACING).orElse(null) ?: return
+        val type = blockState.getOptionalValue(ChestBlock.TYPE).orElse(null) ?: return
         val containerSlots = screen.getContainerSlots()
         val inventories = containerSlots.partition { it.index < 27 }
 
@@ -137,7 +137,7 @@ object DataInjectionHandler {
             }
 
             ChestType.LEFT -> {
-                val position = worldPosition.offset(facing.getClockWise())
+                val position = blockPos.offset(facing.getClockWise().getUnitVec3i())
                 val otherChest = level?.getBlockEntity(position)
                 if (otherChest !is ChestBlockEntity) return
 
@@ -148,11 +148,11 @@ object DataInjectionHandler {
                     setItem(it.index - 27, it.item)
                 }
 
-                scannedBlockEntities[otherChest.worldPosition] = otherChest
+                scannedBlockEntities[otherChest.blockPos] = otherChest
             }
 
             ChestType.RIGHT -> {
-                val position = worldPosition.offset(facing.getCounterClockWise())
+                val position = blockPos.offset(facing.getCounterClockWise().getUnitVec3i())
                 val otherChest = level?.getBlockEntity(position)
                 if (otherChest !is ChestBlockEntity) return
 
@@ -163,7 +163,7 @@ object DataInjectionHandler {
                     otherChest.setItem(it.index - 27, it.item)
                 }
 
-                scannedBlockEntities[otherChest.worldPosition] = otherChest
+                scannedBlockEntities[otherChest.blockPos] = otherChest
             }
         }
     }

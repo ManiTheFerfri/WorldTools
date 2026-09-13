@@ -6,6 +6,7 @@ import net.minecraft.world.level.storage.TagValueOutput
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.util.ProblemReporter
 import net.minecraft.util.Util
+import net.minecraft.nbt.NbtUtils
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
 import org.waste.of.time.Utils.asString
@@ -29,15 +30,15 @@ data class PlayerStoreable(
         get() = translateHighlight(
             "worldtools.capture.saved.player",
             player.name,
-            player.position.debugInfo(),
-            player.level.registryKey.value.path
+            player.position().toString(),
+            player.level().dimension().identifier().path
         )
 
     override val anonymizedInfo: MutableComponent
         get() = translateHighlight(
             "worldtools.capture.saved.player.anonymized",
             player.name,
-            player.level.registryKey.value.path
+            player.level().dimension().identifier().path
         )
 
     override fun cache() {
@@ -52,7 +53,7 @@ data class PlayerStoreable(
         savePlayerData(player, session)
         session.createPlayerStorage()
         StatisticManager.players++
-        StatisticManager.dimensions.add(player.level.registryKey.value.path)
+        StatisticManager.dimensions.add(player.level().dimension().identifier().path)
     }
 
     private fun savePlayerData(player: Player, session: LevelStorageAccess) {
@@ -60,9 +61,9 @@ data class PlayerStoreable(
             val playerDir = session.getLevelPath(LevelResource.PLAYER_DATA_DIR).toFile()
             playerDir.mkdirs()
 
-            val writeView = TagValueOutput.create(ProblemReporter.DISCARDING)
-            player.writeData(writeView)
-            val playerNbt = writeView.output.apply {
+            val writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, player.level().registryAccess())
+            player.saveWithoutId(writeView)
+            val playerNbt = writeView.buildResult().apply {
                 if (config.entity.censor.lastDeathLocation) {
                     remove("LastDeathLocation")
                 }
@@ -72,9 +73,9 @@ data class PlayerStoreable(
             NbtIo.writeCompressed(playerNbt, newPlayerFile)
             val currentFile = File(playerDir, player.stringUUID + ".dat").toPath()
             val tempFile = File(playerDir, player.stringUUID + ".dat_old").toPath()
-            Util.backupAndReplace(currentFile, newPlayerFile, tempFile)
+            Util.safeReplaceFile(currentFile, newPlayerFile, tempFile)
         } catch (e: Exception) {
-            WorldTools.LOG.warn("Failed to save player data for {}", player.name.text)
+            WorldTools.LOG.warn("Failed to save player data for {}", player.name.string)
         }
     }
 }

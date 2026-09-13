@@ -36,7 +36,7 @@ class EndFlow : Storeable() {
             val clickToOpen = translateHighlight(
                 "worldtools.capture.click_to_open",
                 currentLevelName
-            ).copy().codepoint {
+            ).copy().withStyle {
                 it.withClickEvent(
                     ClickEvent.OpenFile(
                         session.getLevelPath(LevelResource.ROOT).toFile().path

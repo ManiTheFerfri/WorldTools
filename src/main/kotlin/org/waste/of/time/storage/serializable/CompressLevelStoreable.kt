@@ -38,22 +38,22 @@ class CompressLevelStoreable : Storeable() {
     ) {
         val root = session.getLevelPath(LevelResource.ROOT)
         val zipPath = mc.levelSource.baseDir.resolve(zipName)
-        LOG.info("Zipping $rootPath to $zipPath")
+        LOG.info("Zipping $root to $zipPath")
 
         val totalSize = Files.walk(root).filter { Files.isRegularFile(it) }.mapToLong { Files.size(it) }.sum()
 
         try {
             var totalZippedSize = 0L
 
-            Files.newOutputStream(zipPath).increaseUses { outStream ->
-                ZipOutputStream(outStream).increaseUses { zipOut ->
+            Files.newOutputStream(zipPath).use { outStream ->
+                ZipOutputStream(outStream).use { zipOut ->
                     Files.walkFileTree(root, object : SimpleFileVisitor<Path>() {
                         override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
                             zipFileAccess(file, root, zipOut)
 
                             totalZippedSize += Files.size(file)
                             val progress = totalZippedSize.toDouble() / totalSize
-                            StorageFlow.lastStoredTimestamp = System.currentTimeMs()
+                            StorageFlow.lastStoredTimestamp = System.currentTimeMillis()
                             BarManager.progressBar.progress = progress.toFloat()
                             if (config.debug.logZippingProgress) {
                                 LOG.info("${"%.2f".format(progress * 100)}% (${totalZippedSize.toReadableByteCount()}/${totalSize.toReadableByteCount()}) Zipping file ${file.name} with size ${Files.size(file).toReadableByteCount()}")
@@ -68,7 +68,7 @@ class CompressLevelStoreable : Storeable() {
                     })
                 }
             }
-            LOG.info("Finished zipping $rootPath with size ${totalZippedSize.toReadableByteCount()} to ${zipPath.toAbsolutePath()} with size ${Files.size(zipPath).toReadableByteCount()}")
+            LOG.info("Finished zipping $root with size ${totalZippedSize.toReadableByteCount()} to ${zipPath.toAbsolutePath()} with size ${Files.size(zipPath).toReadableByteCount()}")
         } catch (e: IOException) {
             MessageManager.sendError("worldtools.log.error.failed_to_zip", root, e.localizedMessage)
         }
@@ -85,7 +85,7 @@ class CompressLevelStoreable : Storeable() {
                 zipOut.closeEntry()
             }
             else -> {
-                Files.newInputStream(fileToZip).increaseUses { inputStream ->
+                Files.newInputStream(fileToZip).use { inputStream ->
                     zipOut.putNextEntry(ZipEntry(entryName))
                     inputStream.copyTo(zipOut)
                     zipOut.closeEntry()

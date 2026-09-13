@@ -140,7 +140,7 @@ class MetadataStoreable : Storeable() {
             }
         } ?: run {
             appendLine("## Singleplayer Capture")
-            appendLine("- **Source World Name**: `${mc.getSingleplayerServer()?.name}`")
+            appendLine("- **Source World Name**: `${mc.getSingleplayerServer()?.name()}`")
             appendLine("- **Version**: `${mc.getSingleplayerServer()?.getServerVersion()}`")
         }
 

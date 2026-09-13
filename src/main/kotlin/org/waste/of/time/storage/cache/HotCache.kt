@@ -44,7 +44,7 @@ object HotCache {
         chunks.values
             .flatMap { it.chunk.blockEntities.values }
             .filter { it.isSupported }
-            .filterNot { scannedBlockEntities.containsKey(it.worldPosition) }
+            .filterNot { scannedBlockEntities.containsKey(it.blockPos) }
     }
     val unscannedEntities by LazyUpdatingDelegate(100) {
         entities.values
@@ -74,7 +74,7 @@ object HotCache {
     @Deprecated("This method will default to the current dimension. Please use the new method by passing in a dimension.")
     @Suppress("unused")
     fun isChunkSaved(x: Int, z: Int): Boolean {
-        val dimension = mc.level?.dimension ?: Level.OVERWORLD
+        val dimension = mc.level?.dimension() ?: Level.OVERWORLD
         return isChunkSaved(x, z, dimension)
     }
 
@@ -116,7 +116,7 @@ object HotCache {
         mapIDs.clear()
 
         // failing to reset this could cause users to accidentally save their echest contents on subsequent captures
-        if (!mc.isLocalServer && !config.advanced.keepEnderChestContents) {
+        if (!mc.isLocalServer() && !config.advanced.keepEnderChestContents) {
             mc.player?.enderChestInventory = PlayerEnderChestContainer()
         }
         lastInteractedBlockEntity = null
@@ -125,17 +125,17 @@ object HotCache {
 
     fun BlockEntity.markScanned(fromCache: Boolean = false) {
         if (fromCache) {
-            loadedBlockEntities[worldPosition] = this
+            loadedBlockEntities[blockPos] = this
         } else {
-            scannedBlockEntities[worldPosition] = this
-            loadedBlockEntities.remove(worldPosition)
+            scannedBlockEntities[blockPos] = this
+            loadedBlockEntities.remove(blockPos)
         }
 
-        level?.dimension?.value?.path?.let {
+        level?.dimension()?.identifier()?.path?.let {
             StatisticManager.dimensions.add(it)
         }
         if (config.debug.logSavedContainers) {
-            LOG.info("Saved block entity: ${BuiltInRegistries.BLOCK_ENTITY_TYPE.getId(type)?.path} at $pos")
+            LOG.info("Saved block entity: ${BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type)?.path} at $blockPos")
         }
     }
 

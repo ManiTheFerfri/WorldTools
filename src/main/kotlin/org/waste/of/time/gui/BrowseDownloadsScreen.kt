@@ -1,7 +1,7 @@
 package org.waste.of.time.gui
 
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.components.ObjectSelectionList
 import net.minecraft.network.chat.Component
@@ -24,12 +24,12 @@ object BrowseDownloadsScreen : Screen(Component.translatable("worldtools.gui.bro
     }
 
     class WorldDownloadEntry : ObjectSelectionList.Entry<WorldDownloadEntry>() {
-        override fun render(
-            context: GuiGraphics?,
+        override fun extractContent(
+            extractor: GuiGraphicsExtractor,
             mouseX: Int,
             mouseY: Int,
             isHovered: Boolean,
-            deltaTicks: Float
+            partialTick: Float
         ) {
             TODO("Not yet implemented")
         }

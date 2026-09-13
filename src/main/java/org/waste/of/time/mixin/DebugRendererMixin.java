@@ -10,7 +10,7 @@ import org.waste.of.time.Events;
 
 @Mixin(DebugRenderer.class)
 public class DebugRendererMixin {
-    @Inject(method = "render", at = @At("HEAD"))
+    @Inject(method = "emitGizmos", at = @At("HEAD"))
     public void renderInject(
             Frustum frustum,
             double cameraX,

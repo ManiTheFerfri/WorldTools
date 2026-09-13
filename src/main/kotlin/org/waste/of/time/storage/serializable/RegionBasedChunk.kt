@@ -43,10 +43,10 @@ open class RegionBasedChunk(
         cachedBlockEntities.putAll(chunk.getBlockEntities())
 
         cachedBlockEntities.values.associateWith { fresh ->
-            HotCache.scannedBlockEntities[fresh.worldPosition]
+            HotCache.scannedBlockEntities[fresh.blockPos]
         }.forEach { (fresh, lastEntry) ->
             if (lastEntry == null) return@forEach
-            cachedBlockEntities[fresh.worldPosition] = lastEntry
+            cachedBlockEntities[fresh.blockPos] = lastEntry
         }
     }
 
@@ -111,7 +111,7 @@ open class RegionBasedChunk(
      * See [net.minecraft.world.level.chunk.storage.SerializableChunkData.write]
      */
     override fun compound() = CompoundTag().apply {
-        if (config.level.metadata.captureTimestamp) {
+        if (config.world.metadata.captureTimestamp) {
             putLong(TIMESTAMP_KEY, System.currentTimeMillis())
         }
 
@@ -175,8 +175,8 @@ open class RegionBasedChunk(
                     val chunkSection = chunk.getSection(sectionCoord)
                     // PalettedContainer contains a lock that is acquired during read/write operations.
                     // Use acquire()/release() for safe concurrent reads; captured chunks are no longer written to.
-                    chunkSection.getStates().acquire()
-                    chunkSection.getBiomes().acquire()
+                    (chunkSection.getStates() as PalettedContainer<*>).acquire()
+                    (chunkSection.getBiomes() as PalettedContainer<*>).acquire()
                     put(
                         "block_states",
                         blockStatesCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getStates()).getOrThrow()
@@ -185,8 +185,8 @@ open class RegionBasedChunk(
                         "biomes",
                         biomeCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getBiomes()).getOrThrow()
                     )
-                    chunkSection.getStates().release()
-                    chunkSection.getBiomes().release()
+                    (chunkSection.getStates() as PalettedContainer<*>).release()
+                    (chunkSection.getBiomes() as PalettedContainer<*>).release()
                 }
                 if (blockLightSection != null && !blockLightSection.isEmpty()) {
                     putByteArray(SerializableChunkData.BLOCK_LIGHT_TAG, blockLightSection.getData())
@@ -240,7 +240,7 @@ open class RegionBasedChunk(
     private fun CompoundTag.genPostProcessing(chunk: LevelChunk) {
         put("PostProcessing", ListTag().apply {
             chunk.getPostProcessing().forEach { shortList ->
-                add(ListTag().apply { shortList.forEach { add(net.minecraft.nbt.ShortTag.valueOf(it)) } })
+                add(ListTag().apply { shortList?.forEach { add(net.minecraft.nbt.ShortTag.valueOf(it)) } })
             }
         })
 

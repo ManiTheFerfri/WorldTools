@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.Tag
+import net.minecraft.nbt.NbtAccounter
 import net.minecraft.nbt.NbtIo
 import net.minecraft.nbt.ListTag
 import net.minecraft.core.registries.BuiltInRegistries
@@ -67,7 +68,7 @@ open class CustomRegionBasedStorage internal constructor(
 
     private fun getNbtAt(chunkPos: ChunkPos) =
         getRegionFile(chunkPos).getChunkDataInputStream(chunkPos)?.use { dataInputStream ->
-            NbtIo.read(dataInputStream, NbtAccounter.EMPTY)
+            NbtIo.read(dataInputStream, NbtAccounter.unlimitedHeap())
         }
 
     fun getBlockEntities(chunkPos: ChunkPos): List<BlockEntity> {
@@ -84,12 +85,13 @@ open class CustomRegionBasedStorage internal constructor(
             val level = mc.level ?: return@mapNotNull null
 
             runCatching {
-                val block = BuiltInRegistries.BLOCK.get(blockStateIdentifier).orElse(null) ?: return@mapNotNull null
+                val block = BuiltInRegistries.BLOCK.get(blockStateIdentifier).orElse(null)?.value() ?: return@mapNotNull null
                 BuiltInRegistries.BLOCK_ENTITY_TYPE
                     .get(blockStateIdentifier)
                     .orElse(null)
-                    ?.create(blockPos, block.defaultState)?.apply {
-                        val readView = TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess, compoundTag)
+                    ?.value()
+                    ?.create(blockPos, block.defaultBlockState())?.apply {
+                        val readView = TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess(), compoundTag)
                         loadCustomOnly(readView)
                     }
             }.getOrNull()
@@ -108,6 +110,6 @@ open class CustomRegionBasedStorage internal constructor(
             }
         }
 
-        throwableDeliverer.deliver()
+        throwableDeliverer.throwIfPresent()
     }
 }

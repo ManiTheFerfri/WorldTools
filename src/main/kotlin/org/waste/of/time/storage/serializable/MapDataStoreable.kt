@@ -39,16 +39,16 @@ class MapDataStoreable : Storeable() {
             dataDirectory.toFile().mkdirs()
         }
 
-        mc.world?.let { world ->
-            world.mapData?.filter { (component, _) ->
-                HotCache.mapIDs.contains(component.id)
-            }?.forEach { (component, mapState) ->
-                val id = component.id
+        mc.level?.let { world ->
+            world.getAllMapData().filter { (mapId, _) ->
+                HotCache.mapIDs.contains(mapId.id())
+            }.forEach { (mapId, mapState) ->
+                val id = mapId.id()
                 CompoundTag().apply {
                     val mapNbt = MapItemSavedData.CODEC.encodeStart(NbtOps.INSTANCE, mapState)
                         .getOrThrow { error -> IllegalStateException("Failed to encode map state: $error") }
                     put("data", mapNbt)
-                    NbtUtils.putDataVersion(this)
+                    NbtUtils.addCurrentDataVersion(this)
                     val mapFile = dataDirectory.resolve("map_$id${WorldTools.DAT_EXTENSION}")
                     if (!mapFile.exists()) {
                         mapFile.toFile().createNewFile()

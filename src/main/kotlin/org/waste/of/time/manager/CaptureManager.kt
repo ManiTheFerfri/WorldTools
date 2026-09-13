@@ -137,7 +137,7 @@ object CaptureManager {
             }
         }
 
-        world.entities.forEach {
+        world.entitiesForRendering().forEach {
             if (it is Player) {
                 PlayerStoreable(it).cache()
             } else {

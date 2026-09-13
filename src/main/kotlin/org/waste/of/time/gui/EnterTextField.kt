@@ -16,7 +16,7 @@ class EnterTextField(
         if (input.key == GLFW.GLFW_KEY_ENTER) {
             if (CaptureManager.capturing) {
                 client?.gui?.setScreen(null)
-                CaptureManager.destroy()
+                CaptureManager.stop()
             } else {
                 client?.gui?.setScreen(null)
                 CaptureManager.start(value)

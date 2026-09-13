@@ -55,8 +55,8 @@ class StatisticStoreable : Storeable() {
         Files.newBufferedWriter(
             statDirectory.resolve("$uuid.json"),
             StandardCharsets.UTF_8
-        ).increaseUses { writer ->
-            GSON.serializePackets(json, writer)
+        ).use { writer ->
+            GSON.toJson(json, writer)
         }
 
         WorldTools.LOG.info("Saved ${completeStatMap.entries.size} stats.")

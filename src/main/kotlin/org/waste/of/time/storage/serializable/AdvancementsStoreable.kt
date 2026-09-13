@@ -3,11 +3,9 @@ package org.waste.of.time.storage.serializable
 import com.google.gson.JsonElement
 import com.mojang.serialization.JsonOps
 import net.minecraft.server.PlayerAdvancements
-import net.minecraft.util.datafix.DataFixTypes
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorageSource
-import org.waste.of.time.WorldTools.CURRENT_VERSION
 import org.waste.of.time.WorldTools.GSON
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
@@ -30,10 +28,7 @@ class AdvancementsStoreable : Storeable() {
     override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
-    private val codec =
-        DataFixTypes.ADVANCEMENTS.createDataFixingCodec(
-            PlayerAdvancements.ProgressMap.CODEC, mc.fixerUpper, CURRENT_VERSION
-        )
+    private val codec = PlayerAdvancements.Data.CODEC
 
     override fun store(
         session: LevelStorageSource.LevelStorageAccess,
@@ -45,24 +40,24 @@ class AdvancementsStoreable : Storeable() {
             ?.advancements
             ?.progress ?: return
         val progressMap = progress.entries
-            .filter { it.value.isAnyObtained }
+            .filter { it.value.hasProgress() }
             .associate {
                 it.key.id to it.value
             }
         val jsonElement =
             codec.encodeStart(
                 JsonOps.INSTANCE,
-                PlayerAdvancements.ProgressMap(progressMap)
+                PlayerAdvancements.Data(progressMap)
             ).getOrThrow() as JsonElement
 
 
-        val advancements = session.getLevelPath(LevelResource.ADVANCEMENTS)
+        val advancements = session.getLevelPath(LevelResource.PLAYER_ADVANCEMENTS_DIR)
         Files.createDirectories(advancements)
         Files.newBufferedWriter(
             advancements.resolve("$uuid.json"),
             StandardCharsets.UTF_8
-        ).increaseUses { writer ->
-            GSON.serializePackets(jsonElement, writer)
+        ).use { writer ->
+            GSON.toJson(jsonElement, writer)
         }
 
         LOG.info("Saved ${progressMap.size} advancements.")

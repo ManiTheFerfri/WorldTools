@@ -21,13 +21,13 @@ class BlockEntityLoadable(
 
     override val verboseInfo = translateHighlight(
         "worldtools.capture.loaded.block_entities",
-        chunk.worldPosition,
-        chunk.level.registryKey.value.path
+        chunk.pos,
+        chunk.level.dimension().identifier().path
     )
 
     override val anonymizedInfo = translateHighlight(
         "worldtools.capture.loaded.block_entities.anonymized",
-        chunk.level.registryKey.value.path
+        chunk.level.dimension().identifier().path
     )
 
     fun load(
@@ -40,7 +40,7 @@ class BlockEntityLoadable(
             .forEach { existing ->
                 HotCache.chunks[chunkPos]
                     ?.cachedBlockEntities
-                    ?.get(existing.worldPosition)
+                    ?.get(existing.blockPos)
                     ?.let { blockEntity ->
                         when (blockEntity) {
                             is BaseContainerBlockEntity -> blockEntity.migrateData(existing)

@@ -11,8 +11,8 @@ import org.waste.of.time.storage.serializable.StatisticStoreable;
 
 @Mixin(ClientPacketListener.class)
 public class ClientPlayNetworkHandlerMixin {
-    @Inject(method = "onStatistics", at = @At("RETURN"))
-    private void onStatistics(StatisticsS2CPacket packet, CallbackInfo ci) {
+    @Inject(method = "handleAwardStats", at = @At("RETURN"))
+    private void onStatistics(ClientboundAwardStatsPacket packet, CallbackInfo ci) {
         if (!CaptureManager.INSTANCE.getCapturing()) return;
         new StatisticStoreable().emit();
     }

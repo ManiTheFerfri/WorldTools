@@ -86,7 +86,7 @@ object Events {
     }
 
     fun onClientJoin() {
-        HotCache.clearAllBlockEntities()
+        HotCache.clear()
         StorageFlow.lastStored = null
         StatisticManager.reset()
         if (config.general.autoDownload) CaptureManager.start()
@@ -94,12 +94,12 @@ object Events {
 
     fun onClientDisconnect() {
         if (!capturing) return
-        CaptureManager.destroy()
+        CaptureManager.stop()
     }
 
     fun onInteractBlock(level: Level, hitResult: BlockHitResult) {
         if (!capturing) return
-        val blockEntity = level.getEntity(hitResult.blockPos)
+        val blockEntity = level.getBlockEntity(hitResult.blockPos)
         HotCache.lastInteractedBlockEntity = blockEntity
         HotCache.lastInteractedEntity = null
     }
@@ -144,7 +144,7 @@ object Events {
         val widget = if (capturing) {
             val label = translateHighlight("worldtools.gui.escape.button.finish_download", currentLevelName)
             Button.builder(label) {
-                CaptureManager.destroy()
+                CaptureManager.stop()
                 mc.gui.setScreen(null)
             }.width(204).build()
         } else {
@@ -153,7 +153,7 @@ object Events {
             }.width(204).build()
         }
 
-        add.add(widget, 2)
+        add.addChild(widget, 2)
     }
 
     fun onScreenRemoved(screen: Screen) {
@@ -178,9 +178,9 @@ object Events {
             //  need to find a reliable way to determine it
             //  if chunk is loaded, remove the entity? -> doesn't seem to work because server will remove entity before chunk is unloaded
             mc.player?.let { player ->
-                if (entity.position.manhattanDistance2d(player.position) < 32) { // todo: configurable distance, this should be small enough to be safe for most cases
+                if (entity.position().manhattanDistance2d(player.position()) < 32) { // todo: configurable distance, this should be small enough to be safe for most cases
                     val cacheable = EntityCacheable(entity)
-                    HotCache.entities[entity.chunkPosition]?.remove(cacheable)
+                    HotCache.entities[entity.chunkPosition()]?.remove(cacheable)
                 }
             }
         }

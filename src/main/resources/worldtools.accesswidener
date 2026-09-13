@@ -1,7 +1,6 @@
 accessWidener	v2	official
 
 accessible	class	net/minecraft/client/multiplayer/ClientChunkCache$Storage
-accessible	method	net/minecraft/client/multiplayer/ClientChunkCache$Storage	isInRadius	(II)Z
 accessible	class	net/minecraft/server/PlayerAdvancements$Data
 accessible	method	net/minecraft/server/PlayerAdvancements$Data	<init>	(Ljava/util/Map;)V
 accessible	field	net/minecraft/client/multiplayer/ClientAdvancements	progress	Ljava/util/Map;
@@ -13,6 +12,4 @@ accessible	field	net/minecraft/client/multiplayer/ClientChunkCache$Storage	viewR
 accessible	method	net/minecraft/client/multiplayer/ClientLevel	getAllMapData	()Ljava/util/Map;
 accessible	field	net/minecraft/world/entity/player/Player	enderChestInventory	Lnet/minecraft/world/inventory/PlayerEnderChestContainer;
 accessible	method	net/minecraft/world/level/block/entity/BaseContainerBlockEntity	getItems	()Lnet/minecraft/core/NonNullList;
-accessible	method	net/minecraft/world/level/block/entity/BaseContainerBlockEntity	setHeldStacks	(Lnet/minecraft/core/NonNullList;)V
-accessible	method	net/minecraft/world/level/chunk/storage/SerializableChunkData	toNbt	([Lit/unimi/dsi/fastutil/shorts/ShortList;)Lnet/minecraft/nbt/ListTag;
-accessible	method	net/minecraft/world/level/chunk/storage/SerializableChunkData	serializeTicks	(Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/world/level/chunk/ChunkAccess$PackedTicks;)V
+accessible	method	net/minecraft/world/level/block/entity/BaseContainerBlockEntity	setItems	(Lnet/minecraft/core/NonNullList;)V
