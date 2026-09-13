@@ -1,8 +1,8 @@
-# WorldTools 1.2.8+26.2 — Minecraft 26.2 Support
+# WorldTools 1.2.8+26.2.1 — Minecraft 26.2 Support
 
 This release brings WorldTools to **Minecraft 26.2 on Fabric**. It is the first 26.x build of WorldTools anywhere —
 upstream development ended at 1.21.11, so every change below is novel work by [@Promptt001](https://github.com/Promptt001)
-(21 commits, `1bf69b3..c5888b7`).
+(22 commits, `1bf69b3..d0cce08`).
 
 ## Highlights
 
@@ -60,9 +60,32 @@ upstream development ended at 1.21.11, so every change below is novel work by [@
   the loader applies it at runtime, not just at compile time.
 - Removed the obsolete `PalettedContainer` lock mixin — 26.2 exposes public `acquire()`/`release()`.
 
+## Added in 26.2.1 — custom-dimension and player-state fixes
+
+These four issues were originally identified and fixed in the
+[Ronal-SHEN/WorldTools-update](https://github.com/Ronal-SHEN/WorldTools-update) fork (GPL, shared upstream lineage);
+ported here and adapted and re-verified for 26.2.
+
+- **Custom-dimension servers now round-trip correctly** (`d0cce08`): `mc.connection.levels()` is empty on servers
+  with non-standard dimensions (e.g. `play.hollowcube.net`), which left the level.dat dimensions registry empty
+  and made captured worlds fail to load with "Overworld settings missing". The registry is now sourced from what
+  was actually captured (the player's dimension and every dimension with saved chunks/entities), and a synthetic
+  `minecraft:overworld` entry is added when the server has none.
+- **Player no longer spawns in an empty overworld** (`d0cce08`): the vanilla entity save omits the `Dimension`
+  tag; in singleplayer the integrated server loads `playerdata/<uuid>.dat` in preference to `level.dat`, so on
+  custom-dimension servers the player was dropped into the default (often empty) overworld. The `Dimension` tag
+  is now written explicitly in playerdata.
+- **Respawn now lands on the captured build** (`d0cce08`): 26.1+ reads the world spawn from a `spawn` compound
+  (flat `{dimension, pos, yaw, pitch}`) instead of the legacy `SpawnX/Y/Z` fields, which are now ignored. The
+  spawn is anchored to the captured player's position and dimension.
+- **New "Modify Player Behavior" option** (`d0cce08`, World → Player Behavior, default off): optionally strips
+  server-locked player state (`abilities` with flySpeed 0, `mayBuild` false, spectator/adventure game type) so
+  the downloaded world stays usable in every game mode. Disabled by default to preserve captured state verbatim.
+- Localization: config entries for the new option added for all 14 supported languages.
+
 ## Requirements
 
 - Minecraft 26.2, Fabric Loader ≥ 0.19.5, Java ≥ 25
 - [Fabric API](https://modrinth.com/mod/fabric-api), [fabric-language-kotlin](https://modrinth.com/mod/fabric-language-kotlin), [Cloth Config](https://modrinth.com/mod/cloth-config), [Mod Menu](https://modrinth.com/mod/modmenu)
 
-**Full changelog (vs. `WorldTools_1.21.11`)**: https://github.com/Promptt001/WorldTools/compare/WorldTools_1.21.11...26.2
+**Full changelog (vs. `WorldTools_1.21.11`)**: https://github.com/Promptt001/WorldTools/compare/WorldTools_1.21.11...26.2.1
