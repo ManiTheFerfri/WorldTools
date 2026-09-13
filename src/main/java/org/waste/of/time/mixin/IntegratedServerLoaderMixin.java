@@ -11,7 +11,9 @@ import org.waste.of.time.WorldTools;
 @Mixin(WorldOpenFlows.class)
 public class IntegratedServerLoaderMixin {
 
-    @WrapOperation(method = "openWorldLoadLevelData",
+    // 26.2: askForBackup(...) is invoked from openWorldCheckWorldStemCompatibility (javap-verified),
+    // no longer from openWorldLoadLevelData. Old target scanned 0 methods -> MixinTransformerError at runtime.
+    @WrapOperation(method = "openWorldCheckWorldStemCompatibility",
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/screens/worldselection/WorldOpenFlows;askForBackup(Lnet/minecraft/world/level/storage/LevelStorageSource$LevelStorageAccess;ZLjava/lang/Runnable;Ljava/lang/Runnable;)V"
