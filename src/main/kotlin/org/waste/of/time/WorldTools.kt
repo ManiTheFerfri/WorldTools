@@ -31,7 +31,7 @@ object WorldTools {
         "$MOD_ID.key.toggle_capture", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F12,
         KeyMapping.Category.MISC
     )
-    var TAG_NAME = KeyMapping(
+    var CONFIG_KEY = KeyMapping(
         "$MOD_ID.key.open_config", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_F10,
         KeyMapping.Category.MISC
     )

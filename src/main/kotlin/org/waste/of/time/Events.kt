@@ -48,7 +48,7 @@ object Events {
 
     fun onChunkUnload(chunk: LevelChunk) {
         if (!capturing) return
-        (HotCache.chunks[chunk.position] ?: RegionBasedChunk(chunk)).apply {
+        (HotCache.chunks[chunk.pos] ?: RegionBasedChunk(chunk)).apply {
             emit()
             flush()
         }
@@ -73,12 +73,12 @@ object Events {
     }
 
     fun onClientTickStart() {
-        if (CAPTURE_KEY.consumeClick() && mc.level != null && mc.screen == null) {
+        if (CAPTURE_KEY.consumeClick() && mc.level != null && mc.gui.screen() == null) {
             CaptureManager.toggleCapture()
         }
 
-        if (TAG_NAME.consumeClick() && mc.level != null && mc.screen == null) {
-            mc.preserveCurrentChatScreen(ManagerScreen)
+        if (CONFIG_KEY.consumeClick() && mc.level != null && mc.gui.screen() == null) {
+            mc.gui.setScreen(ManagerScreen)
         }
 
         if (!capturing) return
@@ -118,38 +118,38 @@ object Events {
         if (!capturing || !config.render.renderNotYetCachedContainers) return
 
         HotCache.unscannedBlockEntities
-            .forEach { renderBox(it.position.vec, Color(config.render.unscannedContainerColor)) }
+            .forEach { renderBox(it.blockPos.vec, Color(config.render.unscannedContainerColor)) }
 
         HotCache.loadedBlockEntities
-            .forEach { renderBox(it.value.position.vec, Color(config.render.fromCacheLoadedContainerColor)) }
+            .forEach { renderBox(it.value.blockPos.vec, Color(config.render.fromCacheLoadedContainerColor)) }
 
         HotCache.unscannedEntities
-            .forEach { renderBox(it.entity.position.add(-.5, .0, -.5), Color(config.render.unscannedEntityColor)) }
+            .forEach { renderBox(it.entity.position().add(-.5, .0, -.5), Color(config.render.unscannedEntityColor)) }
     }
 
     private val BlockPos.vec get() = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
 
     private fun renderBox(vec: Vec3, color: Color) {
         val box = AABB(vec.x, vec.y, vec.z, vec.x + 1.0, vec.y + 1.0, vec.z + 1.0)
-        val argbColor = ARGB.fromFloats(
-            1.0f,
-            color.red / 255.0f,
-            color.green / 255.0f,
-            color.blue / 255.0f
+        val argbColor = ARGB.color(
+            255,
+            (color.red * 255).toInt(),
+            (color.green * 255).toInt(),
+            (color.blue * 255).toInt()
         )
-        Gizmos.box(box, GizmoStyle.stroked(argbColor))
+        Gizmos.cuboid(box, GizmoStyle.stroke(argbColor))
     }
 
-    fun onGameMenuScreenInitWidgets(add: GridLayout.Adder) {
+    fun onGameMenuScreenInitWidgets(add: GridLayout.RowHelper) {
         val widget = if (capturing) {
             val label = translateHighlight("worldtools.gui.escape.button.finish_download", currentLevelName)
             Button.builder(label) {
                 CaptureManager.destroy()
-                mc.preserveCurrentChatScreen(null)
+                mc.gui.setScreen(null)
             }.width(204).build()
         } else {
             Button.builder(MessageManager.brand) {
-                Minecraft.getInstance().preserveCurrentChatScreen(ManagerScreen)
+                Minecraft.getInstance().gui.setScreen(ManagerScreen)
             }.width(204).build()
         }
 

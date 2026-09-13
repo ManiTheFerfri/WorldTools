@@ -2,6 +2,7 @@ package org.waste.of.time.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -16,23 +17,23 @@ import org.waste.of.time.manager.MessageManager;
 @Mixin(PauseScreen.class)
 public class GameMenuScreenMixin {
 
-    @Inject(method = "initWidgets", at = @At("TAIL"))
-    public void onInitWidgets(final CallbackInfo ci) {
-        GameMenuScreen first = (GameMenuScreen)(Object)this;
-        MinecraftClient client = MinecraftClient.getInstance();
-        Text label = CaptureManager.INSTANCE.getCapturing()
+    @Inject(method = "init", at = @At("TAIL"))
+    public void onInit(final CallbackInfo ci) {
+        PauseScreen self = (PauseScreen) (Object) this;
+        Minecraft client = Minecraft.getInstance();
+        Component label = CaptureManager.INSTANCE.getCapturing()
                 ? MessageManager.INSTANCE.translateHighlight("worldtools.gui.escape.button.finish_download", CaptureManager.INSTANCE.getCurrentLevelName())
-                : MessageManager.INSTANCE.serverBrand();
-        ButtonWidget button = ButtonWidget.builder(label, b -> {
+                : MessageManager.INSTANCE.getBrand();
+        Button button = Button.builder(label, b -> {
             if (CaptureManager.INSTANCE.getCapturing()) {
                 CaptureManager.INSTANCE.stop();
-                client.preserveCurrentChatScreen(null);
+                client.gui.setScreen(null);
             } else {
-                client.preserveCurrentChatScreen(ManagerScreen.INSTANCE);
+                client.gui.setScreen(ManagerScreen.INSTANCE);
             }
         }).width(204).build();
         button.setX(10);
-        button.setY(first.height - 30);
-        ((ScreenAccessor) first).wt$addDrawableChild(button);
+        button.setY(self.height - 30);
+        ((ScreenAccessor) (Object) self).wt$addRenderableWidget(button);
     }
 }
