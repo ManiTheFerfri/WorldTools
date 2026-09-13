@@ -120,7 +120,9 @@ open class RegionBasedChunk(
         putInt(SerializableChunkData.Z_POS_TAG, chunk.getPos().z)
         putLong("LastUpdate", level.getLevelData().getGameTime())
         putLong("InhabitedTime", chunk.getInhabitedTime())
-        putString("Status", BuiltInRegistries.CHUNK_STATUS.getId(chunk.getPersistedStatus()).toString())
+        // 26.2 Registry.getId returns the raw int id (wrote "11" -> "Unknown registry key minecraft:11" on load,
+        // chunk treated as ungenerated and regenerated over the captured terrain) — getKey returns the Identifier
+        putString("Status", BuiltInRegistries.CHUNK_STATUS.getKey(chunk.getPersistedStatus()).toString())
 
         genBackwardsCompat(chunk)
 
