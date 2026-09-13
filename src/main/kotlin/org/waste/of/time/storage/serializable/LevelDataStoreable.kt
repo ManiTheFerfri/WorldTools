@@ -58,7 +58,7 @@ class LevelDataStoreable : Storeable() {
             NbtIo.writeCompressed(levelNbt, newFile)
             val backup = session.getLevelPath(LevelResource.OLD_LEVEL_DATA_FILE)
             val current = session.getLevelPath(LevelResource.LEVEL_DATA_FILE)
-            Util.backupAndReplace(current, newFile, backup)
+            Util.safeReplaceFile(current, newFile, backup)
             LOG.info("Saved level data.")
         } catch (exception: IOException) {
             MessageManager.sendError(
@@ -75,9 +75,9 @@ class LevelDataStoreable : Storeable() {
     private fun serializeLevelData() = CompoundTag().apply {
         val player = CaptureManager.lastPlayer ?: mc.player ?: return@apply
 
-        mc.connection?.brand?.let {
+        mc.connection?.serverBrand?.let {
             put("ServerBrands", ListTag().apply {
-                add(StringTag.of(it))
+                add(StringTag.valueOf(it))
             })
         }
 
@@ -87,34 +87,34 @@ class LevelDataStoreable : Storeable() {
 
         put("Version", CompoundTag().apply {
             putString("Name", SharedConstants.getCurrentVersion().name())
-            putInt("Id", SharedConstants.getCurrentVersion().dataVersion().id())
+            putInt("Id", SharedConstants.getCurrentVersion().dataVersion().version())
             putBoolean("Snapshot", !SharedConstants.getCurrentVersion().stable())
             putString("Series", SharedConstants.getCurrentVersion().dataVersion().series())
         })
 
-        NbtUtils.putDataVersion(this)
+        NbtUtils.addCurrentDataVersion(this)
 
         put("WorldGenSettings", generatorMockNbt())
-        mc.connection?.listedPlayers?.find {
+        mc.connection?.getOnlinePlayers()?.find {
             it.profile.id == player.uuid
         }?.let {
-            putInt("GameType", it.gameMode.getIndex())
-        } ?: putInt("GameType", player.level.server?.gameType?.getIndex() ?: 0)
+            putInt("GameType", it.gameMode.getId())
+        } ?: putInt("GameType", player.level.server?.defaultGameMode?.getId() ?: 0)
 
-        putInt("SpawnX", player.level.levelData.getRespawnData().getPos().x)
-        putInt("SpawnY", player.level.levelData.getRespawnData().getPos().y)
-        putInt("SpawnZ", player.level.levelData.getRespawnData().getPos().z)
-        putFloat("SpawnAngle", player.level.levelData.getRespawnData().yaw())
-        putLong("Time", player.level.time)
-        putLong("DayTime", player.level.dayTime)
-        putLong("LastPlayed", System.currentTimeMs())
+        putInt("SpawnX", player.level.respawnData.globalPos.pos.x)
+        putInt("SpawnY", player.level.respawnData.globalPos.pos.y)
+        putInt("SpawnZ", player.level.respawnData.globalPos.pos.z)
+        putFloat("SpawnAngle", player.level.respawnData.yaw)
+        putLong("Time", player.level.levelData.gameTime)
+        putLong("DayTime", player.level.getOverworldClockTime())
+        putLong("LastPlayed", System.currentTimeMillis())
         putString("LevelName", currentLevelName)
         putInt("version", 19133)
         putInt("clearWeatherTime", 0) // not sure
         putInt("rainTime", 0) // not sure
-        putBoolean("raining", player.level.isRaining)
-        putBoolean("thundering", player.level.isThundering)
-        putBoolean("hardcore", player.level.server?.hardcore ?: false)
+        putBoolean("raining", player.level.isRaining())
+        putBoolean("thundering", player.level.isThundering())
+        putBoolean("hardcore", player.level.levelData.isHardcore)
         putInt("thunderTime", 0) // not sure
         putBoolean("allowCommands", true) // not sure
         putBoolean("initialized", true) // not sure
@@ -128,19 +128,19 @@ class LevelDataStoreable : Storeable() {
 
         // ToDo: Seems that the client side game rules were removed. Now only works for single player :/
         // Game rules need to be serialized using the CODEC now
-        val gameRules = player.level.server?.worldData?.getGameRules()
-        val rulesNbt = if (gameRules != null) {
-            val codec = net.minecraft.world.rule.GameRules.createCodec(player.level.server!!.worldData.dataConfiguration.enabledFeatures)
-            codec.encodeStart(NbtOps.INSTANCE, gameRules).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
+        val server = player.level.server
+        val rulesNbt = if (server != null) {
+            val codec = GameRules.codec(server.worldData.dataConfiguration.enabledFeatures)
+            codec.encodeStart(NbtOps.INSTANCE, server.overworld().getGameRules()).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
         } else {
             CompoundTag()
         }
         put("GameRules", rulesNbt)
-        val playerWriteView = TagValueOutput.create(ProblemReporter.DISCARDING)
-        player.writeData(playerWriteView)
-        put("Player", playerWriteView.output.apply {
+        val playerWriteView = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING)
+        player.saveWithoutId(playerWriteView)
+        put("Player", playerWriteView.buildResult().apply {
             remove("LastDeathLocation") // can contain sensitive information
-            putString("Dimension", "minecraft:${player.level.registryKey.value.path}")
+            putString("Dimension", "minecraft:${player.level.dimension().location.path}")
         })
 
         put("DragonFight", CompoundTag()) // not sure
@@ -153,23 +153,23 @@ class LevelDataStoreable : Storeable() {
     }
 
     private fun GameRules.genGameRules() = CompoundTag().also { output ->
-        this.streamRules().forEach { rule ->
-            output.putString(rule.id.path, this.getRuleValueName(rule))
+        this.availableRules().forEach { rule ->
+            output.putString(rule.getIdentifier().path, this.getAsString(rule))
         }
     }.apply {
         val roomDefinition = config.world.gameRules
         if (!roomDefinition.modifyGameRules) return@apply
 
-        putString(GameRules.SPAWN_WARDENS.id.path, roomDefinition.doWardenSpawning.toString())
+        putString(GameRules.SPAWN_WARDENS.getIdentifier().path, roomDefinition.doWardenSpawning.toString())
         putString("doFireTick", roomDefinition.doFireTick.toString())
-        putString(GameRules.SPREAD_VINES.id.path, roomDefinition.doVinesSpread.toString())
-        putString(GameRules.SPAWN_MOBS.id.path, roomDefinition.doMobSpawning.toString())
-        putString(GameRules.ADVANCE_TIME.id.path, roomDefinition.doDaylightCycle.toString())
-        putString(GameRules.KEEP_INVENTORY.id.path, roomDefinition.keepInventory.toString())
-        putString(GameRules.MOB_GRIEFING.id.path, roomDefinition.doMobGriefing.toString())
-        putString(GameRules.SPAWN_WANDERING_TRADERS.id.path, roomDefinition.doTraderSpawning.toString())
-        putString(GameRules.SPAWN_PATROLS.id.path, roomDefinition.doPatrolSpawning.toString())
-        putString(GameRules.ADVANCE_WEATHER.id.path, roomDefinition.doWeatherCycle.toString())
+        putString(GameRules.SPREAD_VINES.getIdentifier().path, roomDefinition.doVinesSpread.toString())
+        putString(GameRules.SPAWN_MOBS.getIdentifier().path, roomDefinition.doMobSpawning.toString())
+        putString(GameRules.ADVANCE_TIME.getIdentifier().path, roomDefinition.doDaylightCycle.toString())
+        putString(GameRules.KEEP_INVENTORY.getIdentifier().path, roomDefinition.keepInventory.toString())
+        putString(GameRules.MOB_GRIEFING.getIdentifier().path, roomDefinition.doMobGriefing.toString())
+        putString(GameRules.SPAWN_WANDERING_TRADERS.getIdentifier().path, roomDefinition.doTraderSpawning.toString())
+        putString(GameRules.SPAWN_PATROLS.getIdentifier().path, roomDefinition.doPatrolSpawning.toString())
+        putString(GameRules.ADVANCE_WEATHER.getIdentifier().path, roomDefinition.doWeatherCycle.toString())
     }
 
     private fun generatorMockNbt() = CompoundTag().apply {
@@ -179,10 +179,10 @@ class LevelDataStoreable : Storeable() {
 
         put("dimensions", CompoundTag().apply {
             CaptureManager.lastWorldKeys.forEach { key ->
-                put("minecraft:${key.value.path}", CompoundTag().apply {
-                    put("generator", generateGenerator(key.value.path))
+                put("minecraft:${key.identifier().path}", CompoundTag().apply {
+                    put("generator", generateGenerator(key.identifier().path))
 
-                    when (key.value.path) {
+                    when (key.identifier().path) {
                         "the_nether" -> {
                             putString("type", "minecraft:the_nether")
                         }
@@ -270,8 +270,8 @@ class LevelDataStoreable : Storeable() {
                 })
             })
             put("structure_overrides", ListTag().apply {
-                add(StringTag.of("minecraft:strongholds"))
-                add(StringTag.of("minecraft:villages"))
+                add(StringTag.valueOf("minecraft:strongholds"))
+                add(StringTag.valueOf("minecraft:villages"))
             })
         })
         putString("type", "minecraft:flat")
