@@ -2,7 +2,7 @@ package org.waste.of.time.gui
 
 import me.shedaniel.autoconfig.AutoConfig
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.gui.widget.*
+import net.minecraft.client.gui.components.*
 import net.minecraft.network.chat.Component
 import org.waste.of.time.WorldTools.MAX_LEVEL_NAME_LENGTH
 import org.waste.of.time.config.WorldToolsConfig

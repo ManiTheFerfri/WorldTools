@@ -1,10 +1,10 @@
 package org.waste.of.time.storage.cache
 
 import net.minecraft.world.level.block.ChestBlock
-import net.minecraft.block.entity.*
+import net.minecraft.world.level.block.entity.*
 import net.minecraft.world.level.block.state.properties.ChestType
 import net.minecraft.client.gui.screens.Screen
-import net.minecraft.client.gui.screen.ingame.*
+import net.minecraft.client.gui.screens.inventory.*
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.entity.vehicle.minecart.MinecartHopper
