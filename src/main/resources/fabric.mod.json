@@ -16,6 +16,7 @@
   "license": "GNU General Public License v3.0",
   "icon": "assets/worldtools/WorldTools.png",
   "environment": "client",
+  "accessWidener": "worldtools.accesswidener",
   "entrypoints": {
     "client": [
       {
