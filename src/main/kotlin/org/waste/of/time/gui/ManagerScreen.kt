@@ -1,9 +1,6 @@
 package org.waste.of.time.gui
 
-import me.shedaniel.autoconfig.AutoConfig
-import me.shedaniel.autoconfig.ConfigManager
-import me.shedaniel.autoconfig.gui.ConfigScreenProvider
-import me.shedaniel.autoconfig.gui.registry.DefaultGuiRegistryAccess
+import me.shedaniel.autoconfig.AutoConfigClient
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.components.Button
 import net.minecraft.client.gui.components.EditBox
@@ -66,11 +63,7 @@ object ManagerScreen : Screen(Component.translatable("worldtools.gui.manager.tit
 
         configButton = createButton("worldtools.gui.manager.button.config", bottomX, bottomY) {
             minecraft?.gui?.setScreen(
-                ConfigScreenProvider(
-                    AutoConfig.getConfigHolder(WorldToolsConfig::class.java) as ConfigManager<WorldToolsConfig>,
-                    DefaultGuiRegistryAccess(),
-                    this
-                ).get()
+                AutoConfigClient.getConfigScreen(WorldToolsConfig::class.java, this).get()
             )
         }
         addRenderableWidget(configButton)
