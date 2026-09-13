@@ -35,10 +35,10 @@ class MetadataStoreable : Storeable() {
     override val anonymizedInfo: MutableComponent
         get() = verboseInfo
 
-    override fun store(chatSession: LevelStorageAccess, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
-        chatSession.writeIconFile()
+    override fun store(session: LevelStorageAccess, cachedStorages: MutableMap<String, CustomRegionBasedStorage>) {
+        session.writeIconFile()
 
-        chatSession.getLevelPath(LevelResource.ROOT).resolve(MOD_NAME).apply {
+        session.getLevelPath(LevelResource.ROOT).resolve(MOD_NAME).apply {
             Files.createDirectories(this)
 
             writePlayerEntryList()
@@ -58,7 +58,7 @@ class MetadataStoreable : Storeable() {
     private fun Path.writePlayerEntryList() {
         if (mc.isLocalServer) return
 
-        mc.connection?.playerList?.let { playerList ->
+        mc.connection?.getOnlinePlayers()?.let { playerList ->
             if (playerList.isEmpty()) return@let
             resolve("Player Entry List.csv").toFile()
                 .writeText(createPlayerEntryList(playerList.toList()))
@@ -67,23 +67,22 @@ class MetadataStoreable : Storeable() {
     }
 
     private fun Path.writeDimensionTree() {
-        mc.connection?.levels?.let { keys ->
+        mc.connection?.levels()?.let { keys ->
             if (keys.isEmpty()) return@let
             resolve("Dimension Tree.txt").toFile()
-                .writeText(PathTreeNode.buildTree(keys.map { it.value.path }))
+                .writeText(PathTreeNode.buildTree(keys.map { it.identifier().path }))
             LOG.info("Saved ${keys.size} dimensions in tree.")
         }
     }
 
     private fun LevelStorageAccess.writeIconFile() {
-        mc.connection?.serverData?.favicon?.let { favicon ->
-            iconFile.ifPresent {
+        val iconPath = this.getIconFile()
+        mc.connection?.serverData?.iconBytes?.let { favicon ->
+            iconPath.ifPresent {
                 it.writeBytes(favicon)
             }
-        } ?: mc.server?.iconFile?.ifPresent { spIconPath ->
-            iconFile.ifPresent {
-                it.writeBytes(spIconPath.toFile().readBytes())
-            }
+        } ?: run {
+            // singleplayer servers expose no accessible icon file in 26.2; skip quietly
         }
         LOG.info("Saved favicon.")
     }
@@ -103,7 +102,7 @@ class MetadataStoreable : Storeable() {
 
         appendLine()
         appendLine("- **Time**: `${Utils.getTime()}` (Timestamp: `${System.currentTimeMillis()}`)")
-        appendLine("- **Captured By**: `${mc.player?.name?.string}`")
+        appendLine("- **Captured By**: `${mc.player?.getScoreboardName()}`")
 
         appendLine()
 
@@ -112,41 +111,37 @@ class MetadataStoreable : Storeable() {
             if (info.name != "Minecraft Server") {
                 appendLine("- **List Entry Name**: `${info.name}`")
             }
-            appendLine("- **IP**: `${info.address}`")
-            if (info.status.text.isNotBlank()) {
-                appendLine("- **Capacity**: `${info.playerCountLabel.string}`")
+            appendLine("- **IP**: `${info.ip}`")
+            if (info.status.string.isNotBlank()) {
+                appendLine("- **Capacity**: `${info.status.string}`")
             }
             mc.connection?.let {
-                appendLine("- **Brand**: `${it.brand}`")
+                appendLine("- **Brand**: `${it.serverBrand()}`")
             }
-            appendLine("- **MOTD**: `${info.label.string.split("\n").joinToString(" ")}`")
+            appendLine("- **MOTD**: `${info.motd.string.split("\n").joinToString(" ")}`")
             appendLine("- **Version**: `${info.version.string}`")
-            appendLine("- **Protocol Version**: `${info.protocolVersion}`")
-            appendLine("- **Server Type**: `${info.serverType}`")
+            appendLine("- **Protocol Version**: `${info.protocol}`")
+            appendLine("- **Server Type**: `${info.type()}`")
 
             info.players?.sample?.let l@ { sample ->
                 if (sample.isEmpty()) return@l
                 appendLine("- **Short Label**: `${sample.joinToString { it.name }}`")
             }
-            info.playerListSummary?.let l@ {
+            info.playerList.let l@ {
                 if (it.isEmpty()) return@l
                 appendLine("- **Full Label**: `${it.joinToString(" ") { str -> str.string }}`")
             }
 
             appendLine()
             appendLine("## Connection")
-            (mc.connection?.connection?.hostName as? InetSocketAddress)?.let {
+            (mc.connection?.connection?.remoteAddress as? InetSocketAddress)?.let {
                 appendLine("- **Host Name**: `${it.address.canonicalHostName}`")
                 appendLine("- **Port**: `${it.port}`")
             }
         } ?: run {
             appendLine("## Singleplayer Capture")
-            appendLine("- **Source World Name**: `${mc.server?.name}`")
-            appendLine("- **Version**: `${mc.server?.version}`")
-        }
-
-        mc.connection?.sessionId?.let { id ->
-            appendLine("- **LevelStorageAccess ID**: `$id`")
+            appendLine("- **Source World Name**: `${mc.getSingleplayerServer()?.name}`")
+            appendLine("- **Version**: `${mc.getSingleplayerServer()?.getServerVersion()}`")
         }
 
         appendLine()
@@ -154,10 +149,10 @@ class MetadataStoreable : Storeable() {
     }.toString()
 
     private fun createPlayerEntryList(listEntries: List<PlayerInfo>) = StringBuilder().apply {
-        appendLine("Name, ID, Game Mode, Latency, Scoreboard Team, Model Type, LevelStorageAccess ID, Public Key")
+        appendLine("Name, ID, Game Mode, Latency, Scoreboard Team, Model Type, Session ID, Public Key")
 
         listEntries.forEachIndexed { i, entry ->
-            StorageFlow.lastStoredTimestamp = System.currentTimeMs()
+            StorageFlow.lastStoredTimestamp = System.currentTimeMillis()
             BarManager.progressBar.progress = i.toFloat() / listEntries.size
             serializePlayerListEntry(entry)
         }
@@ -168,11 +163,11 @@ class MetadataStoreable : Storeable() {
         append("${entry.profile.id}, ")
         append("${entry.gameMode.name}, ")
         append("${entry.latency}, ")
-        append("${entry.scoreboardTeam?.name}, ")
+        append("${entry.team?.name}, ")
         appendLine(entry.skin.model)
         entry.chatSession?.let {
-            append("${it.sessionId}, ")
-            append("${it.publicKeyData?.data}, ")
+            append("${it.sessionId()}, ")
+            append("${it.profilePublicKey().data()}, ")
         }
     }
 }
