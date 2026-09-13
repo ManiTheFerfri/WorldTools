@@ -1,85 +1,66 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import net.fabricmc.loom.task.RemapJarTask
-
 plugins {
-    kotlin("jvm") version ("2.1.0")
-    id("architectury-plugin") version "3.4-SNAPSHOT"
-    id("dev.architectury.loom") version "1.13-SNAPSHOT" apply false
-    id("com.github.johnrengelman.shadow") version "8.1.1" apply false
+    kotlin("jvm") version "2.4.20"
+    id("net.fabricmc.fabric-loom") version "${project.property("loom_version")}"
 }
 
-architectury {
-    minecraft = project.properties["minecraft_version"]!! as String
+group = project.property("maven_group") as String
+version = "${project.property("mod_version")}+${project.property("minecraft_version")}"
+
+base {
+    archivesName.set(project.property("archives_base_name") as String)
 }
 
-subprojects {
-    apply(plugin = "dev.architectury.loom")
-    dependencies {
-        "minecraft"("com.mojang:minecraft:${project.properties["minecraft_version"]!!}")
-        "mappings"("net.fabricmc:yarn:${project.properties["yarn_mappings"]}:v2")
+loom {
+    accessWidenerPath.set(file("src/main/resources/worldtools.accesswidener"))
+}
+
+repositories {
+    maven("https://maven.shedaniel.me/")
+    maven("https://maven.terraformersmc.com/releases/")
+    mavenCentral()
+}
+
+dependencies {
+    minecraft("com.mojang:minecraft:${project.property("minecraft_version")}")
+    modImplementation("net.fabricmc:fabric-loader:${project.property("fabric_loader_version")}")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_api_version")}")
+    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("fabric_kotlin_version")}")
+    modApi("me.shedaniel.cloth:cloth-config-fabric:${project.property("cloth_config_version")}") {
+        exclude(group = "net.fabricmc.fabric-api", module = "fabric-api")
     }
-    if (path != ":common") {
-        apply(plugin = "com.github.johnrengelman.shadow")
+    modCompileOnly("com.terraformersmc:modmenu:${project.property("mod_menu_version")}")
+}
 
-        val shadowCommon by configurations.creating {
-            isCanBeConsumed = false
-            isCanBeResolved = true
-        }
-        val versionWithMCVersion = "${project.properties["mod_version"]!!}+${project.properties["minecraft_version"]!!}"
-
-        tasks.withType<JavaCompile> {
-            options.encoding = "UTF-8"
-            options.release = 21
-        }
-
-        tasks {
-            val shadowJarTask = named("shadowJar", ShadowJar::class)
-            shadowJarTask {
-                archiveVersion = versionWithMCVersion
-                archiveClassifier.set("shadow")
-                configurations = listOf(shadowCommon)
-            }
-
-            "remapJar"(RemapJarTask::class) {
-                dependsOn(shadowJarTask)
-                inputFile = shadowJarTask.flatMap { it.archiveFile }
-                archiveVersion = versionWithMCVersion
-                archiveClassifier = ""
-            }
-            jar {
-                enabled = false
-            }
-        }
+tasks.processResources {
+    inputs.property("version", version)
+    filesMatching("fabric.mod.json") {
+        expand(
+            mutableMapOf(
+                "version" to version,
+                "fabric_loader_version" to project.property("fabric_loader_version"),
+                "fabric_kotlin_version" to project.property("fabric_kotlin_version")
+            )
+        )
     }
 }
 
-allprojects {
-    apply(plugin = "java")
-    apply(plugin = "architectury-plugin")
-    apply(plugin = "maven-publish")
-    apply(plugin = "org.jetbrains.kotlin.jvm")
-    base.archivesName.set(project.properties["archives_base_name"]!! as String)
-    group = project.properties["maven_group"]!!
-    version = project.properties["mod_version"]!!
+tasks.withType<JavaCompile>().configureEach {
+    options.encoding = "UTF-8"
+    options.release = 25
+}
 
-    repositories {
-        maven("https://api.modrinth.com/maven")
-        maven("https://jitpack.io")
-        maven("https://server.bbkr.space/artifactory/libs-release") {
-            name = "CottonMC"
-        }
-        maven("https://maven.shedaniel.me/")
-        maven("https://maven.terraformersmc.com/releases/")
-    }
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
 
-    tasks {
-        compileKotlin {
-            kotlinOptions.jvmTarget = "21"
-        }
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
+        freeCompilerArgs.add("-Xjvm-default=all")
     }
+}
 
-    tasks.withType(JavaCompile::class.java) {
-        options.encoding = "UTF-8"
-        options.release = 21
-    }
+kotlin {
+    jvmToolchain(25)
 }

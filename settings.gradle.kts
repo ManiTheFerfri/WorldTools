@@ -1,16 +1,11 @@
-rootProject.name = "WorldTools"
 pluginManagement {
     repositories {
         maven("https://maven.fabricmc.net/") {
             name = "Fabric"
         }
-        maven("https://maven.architectury.dev/")
-        maven("https://maven.minecraftforge.net/")
         mavenCentral()
         gradlePluginPortal()
     }
 }
 
-include("common")
-include("fabric")
-// include("forge") // Forge is not supported for MC 1.21.11+, use NeoForge instead
+rootProject.name = "WorldTools"
