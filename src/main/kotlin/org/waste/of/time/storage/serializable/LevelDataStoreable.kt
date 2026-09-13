@@ -15,6 +15,7 @@ import net.minecraft.world.flag.FeatureFlags
 import net.minecraft.world.level.gamerules.GameRuleMap
 import java.nio.file.Files
 import java.nio.file.Path
+import org.waste.of.time.Utils.sanitizePlayerForSingleplayer
 import org.waste.of.time.Utils.toByte
 import org.waste.of.time.WorldTools.DAT_EXTENSION
 import org.waste.of.time.WorldTools.LOG
@@ -25,6 +26,7 @@ import org.waste.of.time.manager.CaptureManager
 import org.waste.of.time.manager.CaptureManager.currentLevelName
 import org.waste.of.time.manager.MessageManager
 import org.waste.of.time.manager.MessageManager.translateHighlight
+import org.waste.of.time.manager.StatisticManager
 import org.waste.of.time.storage.CustomRegionBasedStorage
 import org.waste.of.time.storage.Storeable
 import java.io.File
@@ -149,10 +151,17 @@ class LevelDataStoreable : Storeable() {
             putInt("GameType", it.gameMode.getId())
         } ?: putInt("GameType", player.level().getServer()?.defaultGameType?.id ?: 0)
 
-        putInt("SpawnX", player.level().getRespawnData().globalPos.pos.x)
-        putInt("SpawnY", player.level().getRespawnData().globalPos.pos.y)
-        putInt("SpawnZ", player.level().getRespawnData().globalPos.pos.z)
-        putFloat("SpawnAngle", player.level().getRespawnData().yaw)
+        // Since 26.1 the world spawn is read from a "spawn" compound (LevelData.RespawnData.CODEC:
+        // flat {dimension, pos, yaw, pitch}; GlobalPos.MAP_CODEC is inlined without a wrapper key),
+        // not the legacy SpawnX/Y/Z fields (which are now ignored, leaving spawn at overworld
+        // 0,0,0 -> the void on custom-dimension servers). Anchor it to the captured player's
+        // position and dimension so respawns land on the actual build rather than an empty overworld.
+        put("spawn", CompoundTag().apply {
+            put("pos", IntArrayTag(intArrayOf(player.getBlockX(), player.getBlockY(), player.getBlockZ())))
+            putFloat("yaw", player.getYRot())
+            putFloat("pitch", player.getXRot())
+            putString("dimension", "minecraft:${player.level().dimension().identifier().path}")
+        })
         putLong("Time", player.level().getLevelData().getGameTime())
         putLong("DayTime", player.level().getOverworldClockTime())
         putLong("LastPlayed", System.currentTimeMillis())
@@ -189,6 +198,9 @@ class LevelDataStoreable : Storeable() {
         put("Player", playerWriteView.buildResult().apply {
             remove("LastDeathLocation") // can contain sensitive information
             putString("Dimension", "minecraft:${player.level().dimension().identifier().path}")
+            if (config.world.playerBehavior.modifyPlayerBehavior) {
+                sanitizePlayerForSingleplayer()
+            }
         })
 
         put("DragonFight", CompoundTag()) // not sure
@@ -263,11 +275,24 @@ class LevelDataStoreable : Storeable() {
         putBoolean("generate_structures", config.world.worldGenerator.generateFeatures)
 
         put("dimensions", CompoundTag().apply {
-            CaptureManager.lastWorldKeys.forEach { key ->
-                put("minecraft:${key.identifier().path}", CompoundTag().apply {
-                    put("generator", generateGenerator(key.identifier().path))
+            // Collect every dimension we actually captured. mc.connection.levels()
+            // (lastWorldKeys) is empty on servers with non-standard dimensions
+            // (e.g. play.hollowcube.net), which would leave this registry empty,
+            // so also include the player's current dimension and every dimension we
+            // saved chunks/block entities for.
+            val dimensionPaths = linkedSetOf<String>().apply {
+                addAll(CaptureManager.lastWorldKeys.map { it.identifier().path })
+                (CaptureManager.lastPlayer ?: mc.player)?.let {
+                    add(it.level().dimension().identifier().path)
+                }
+                addAll(StatisticManager.dimensions)
+            }
 
-                    when (key.identifier().path) {
+            dimensionPaths.forEach { path ->
+                put("minecraft:$path", CompoundTag().apply {
+                    put("generator", generateGenerator(path))
+
+                    when (path) {
                         "the_nether" -> {
                             putString("type", "minecraft:the_nether")
                         }
@@ -278,6 +303,17 @@ class LevelDataStoreable : Storeable() {
                             putString("type", "minecraft:overworld")
                         }
                     }
+                })
+            }
+
+            // Vanilla's WorldDimensions codec requires a minecraft:overworld entry,
+            // otherwise loading crashes with "Overworld settings missing". If the server
+            // had no overworld, add an empty synthetic one so the captured custom
+            // dimensions above still load (the player spawns in their saved dimension).
+            if (dimensionPaths.none { it == "overworld" }) {
+                put("minecraft:overworld", CompoundTag().apply {
+                    put("generator", generateGenerator("overworld"))
+                    putString("type", "minecraft:overworld")
                 })
             }
         })

@@ -73,6 +73,14 @@ class WorldToolsConfig : ConfigData {
         val gameRules = GameRules()
 
         @CollapsibleObject(startExpanded = true)
+        val playerBehavior = PlayerBehavior()
+
+        class PlayerBehavior {
+            @Tooltip
+            var modifyPlayerBehavior = false
+        }
+
+        @CollapsibleObject(startExpanded = true)
         val metadata = Metadata()
 
         @CollapsibleObject(startExpanded = true)

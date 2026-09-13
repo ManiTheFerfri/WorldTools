@@ -10,6 +10,7 @@ import net.minecraft.nbt.NbtUtils
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorageSource.LevelStorageAccess
 import org.waste.of.time.Utils.asString
+import org.waste.of.time.Utils.sanitizePlayerForSingleplayer
 import org.waste.of.time.WorldTools
 import org.waste.of.time.WorldTools.config
 import org.waste.of.time.manager.MessageManager.translateHighlight
@@ -64,8 +65,17 @@ data class PlayerStoreable(
             val writeView = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, player.level().registryAccess())
             player.saveWithoutId(writeView)
             val playerNbt = writeView.buildResult().apply {
+                // The vanilla entity save omits the Dimension tag (it is normally written by
+                // the server's player-save wrapper). In single-player the integrated server
+                // loads the player from playerdata/<uuid>.dat in preference to level.dat's
+                // Player tag, so without a Dimension here the player is dropped into the
+                // default (often empty) overworld instead of their captured dimension.
+                putString("Dimension", "minecraft:${player.level().dimension().identifier().path}")
                 if (config.entity.censor.lastDeathLocation) {
                     remove("LastDeathLocation")
+                }
+                if (config.world.playerBehavior.modifyPlayerBehavior) {
+                    sanitizePlayerForSingleplayer()
                 }
             }
             

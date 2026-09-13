@@ -1,5 +1,6 @@
 package org.waste.of.time
 
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.phys.Vec3
@@ -13,6 +14,20 @@ import kotlin.math.pow
 
 object Utils {
     // Why cant I use the std lib?
+
+    /**
+     * Servers may hand out locked player state (e.g. flySpeed 0, mayBuild false, a
+     * spectator/adventure game type) that makes a downloaded world unusable in other
+     * game modes in singleplayer - flying in creative is impossible with flySpeed 0.
+     * Strip these so the world's default game type and the vanilla per-game-mode
+     * ability defaults apply on load.
+     */
+    fun CompoundTag.sanitizePlayerForSingleplayer(): CompoundTag = apply {
+        remove("abilities")
+        remove("playerGameType")
+        remove("previousPlayerGameType")
+    }
+
     fun Boolean.toByte(): Byte = if (this) 1 else 0
     fun Vec3.asString() = "(%.2f, %.2f, %.2f)".format(x, y, z)
 
