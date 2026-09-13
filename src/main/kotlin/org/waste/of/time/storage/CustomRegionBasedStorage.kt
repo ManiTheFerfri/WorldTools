@@ -16,7 +16,7 @@ import net.minecraft.world.level.ChunkPos
 import net.minecraft.world.level.Level
 import net.minecraft.world.level.chunk.storage.RegionFile
 import net.minecraft.world.level.chunk.storage.RegionStorageInfo
-import org.waste.of.time.WorldTools.MCA_EXTENSION
+import org.waste.of.time.WorldTools.ANVIL_EXTENSION
 import org.waste.of.time.WorldTools.MOD_NAME
 import org.waste.of.time.WorldTools.mc
 import java.io.DataOutput
@@ -39,15 +39,15 @@ open class CustomRegionBasedStorage internal constructor(
 
     @Throws(IOException::class)
     fun getRegionFile(worldPosition: ChunkPos): RegionFile {
-        val longPos = ChunkPos.pack(worldPosition.regionX, worldPosition.regionZ)
+        val longPos = ChunkPos.pack(worldPosition.getRegionX(), worldPosition.getRegionZ())
         regionCache.getAndMoveToFirst(longPos)?.let { return it }
 
         if (regionCache.size >= 256) {
-            regionCache.discardLast()?.close()
+            regionCache.removeLast()?.close()
         }
 
         Files.createDirectories(externalFileDir)
-        val path = externalFileDir.resolve("r." + worldPosition.regionX + "." + worldPosition.regionZ + ANVIL_EXTENSION)
+        val path = externalFileDir.resolve("r." + worldPosition.getRegionX() + "." + worldPosition.getRegionZ() + ANVIL_EXTENSION)
         val regionFile = RegionFile(defaultStorageKey, path, externalFileDir, sync)
         regionCache.putAndMoveToFirst(longPos, regionFile)
         return regionFile
@@ -57,17 +57,17 @@ open class CustomRegionBasedStorage internal constructor(
     fun write(worldPosition: ChunkPos, input: CompoundTag?) {
         val regionFile = getRegionFile(worldPosition)
         if (input == null) {
-            regionFile.doDeleteWorld(worldPosition)
+            regionFile.clear(worldPosition)
         } else {
-            regionFile.getChunkOutputStream(worldPosition).increaseUses { dataOutputStream ->
+            regionFile.getChunkDataOutputStream(worldPosition).use { dataOutputStream ->
                 NbtIo.write(input, dataOutputStream as DataOutput)
             }
         }
     }
 
     private fun getNbtAt(chunkPos: ChunkPos) =
-        getRegionFile(chunkPos).getChunkInputStream(chunkPos)?.increaseUses { dataInputStream ->
-            NbtIo.loadCompound(dataInputStream)
+        getRegionFile(chunkPos).getChunkDataInputStream(chunkPos)?.use { dataInputStream ->
+            NbtIo.read(dataInputStream, NbtAccounter.EMPTY)
         }
 
     fun getBlockEntities(chunkPos: ChunkPos): List<BlockEntity> {
@@ -80,17 +80,17 @@ open class CustomRegionBasedStorage internal constructor(
                 compoundTag.getInt("y").orElse(0),
                 compoundTag.getInt("z").orElse(0)
             )
-            val blockStateIdentifier = Identifier.of(compoundTag.getString("id").orElse(""))
+            val blockStateIdentifier = Identifier.parse(compoundTag.getString("id").orElse(""))
             val level = mc.level ?: return@mapNotNull null
 
             runCatching {
-                val block = BuiltInRegistries.BLOCK.get(blockStateIdentifier)
+                val block = BuiltInRegistries.BLOCK.get(blockStateIdentifier).orElse(null) ?: return@mapNotNull null
                 BuiltInRegistries.BLOCK_ENTITY_TYPE
-                    .getOptionalValue(blockStateIdentifier)
+                    .get(blockStateIdentifier)
                     .orElse(null)
-                    ?.instantiate(blockPos, block.defaultState)?.apply {
+                    ?.create(blockPos, block.defaultState)?.apply {
                         val readView = TagValueInput.create(ProblemReporter.DISCARDING, level.registryAccess, compoundTag)
-                        read(readView)
+                        loadCustomOnly(readView)
                     }
             }.getOrNull()
         }

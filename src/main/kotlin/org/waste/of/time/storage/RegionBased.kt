@@ -9,10 +9,10 @@ import org.waste.of.time.WorldTools.LOG
 
 abstract class RegionBased(
     val chunkPos: ChunkPos,
-    val world: Level,
+    val level: Level,
     private val suffix: String
 ) : Storeable() {
-    val dimension: String = world.dimension.value.path
+    val dimension: String = level.dimension().identifier().path
 
     private val dimensionPath
         get() = when (dimension) {

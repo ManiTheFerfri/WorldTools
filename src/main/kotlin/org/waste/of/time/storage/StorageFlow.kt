@@ -40,7 +40,7 @@ object StorageFlow {
 
         try {
             LOG.info("Started caching")
-            mc.levelSource.createSession(levelName).increaseUses { openSession ->
+            mc.getLevelSource().createAccess(levelName).use { openSession ->
                 sharedFlow.collect { storeable ->
                     if (!storeable.shouldStore()) {
                         return@collect
@@ -54,7 +54,7 @@ object StorageFlow {
 
                     if (shouldSaveLastStored) {
                         lastStored = storeable
-                        lastStoredTimestamp = System.currentTimeMs()
+                        lastStoredTimestamp = System.currentTimeMillis()
                         lastStoredTimeNeeded = time
                     }
 
