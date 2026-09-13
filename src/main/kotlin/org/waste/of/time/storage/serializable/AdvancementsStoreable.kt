@@ -1,11 +1,12 @@
 package org.waste.of.time.storage.serializable
 
-import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import com.mojang.serialization.JsonOps
 import net.minecraft.server.PlayerAdvancements
 import net.minecraft.network.chat.MutableComponent
 import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorageSource
+import org.waste.of.time.WorldTools.CURRENT_DATA_VERSION
 import org.waste.of.time.WorldTools.GSON
 import org.waste.of.time.WorldTools.LOG
 import org.waste.of.time.WorldTools.config
@@ -48,7 +49,13 @@ class AdvancementsStoreable : Storeable() {
             codec.encodeStart(
                 JsonOps.INSTANCE,
                 PlayerAdvancements.Data(progressMap)
-            ).getOrThrow() as JsonElement
+            ).getOrThrow() as JsonObject
+
+        // The datafix-wrapped codec vanilla uses when loading this file falls back to version 1343
+        // (and runs AdvancementsRenameFix over all synced progress) when DataVersion is absent.
+        // Without this, a first join of the captured world can fail with "Duplicate key ... shulker_box"
+        // inside AdvancementsRenameFix and kick the player with "Invalid player data".
+        jsonElement.addProperty("DataVersion", CURRENT_DATA_VERSION)
 
 
         val advancements = session.getLevelPath(LevelResource.PLAYER_ADVANCEMENTS_DIR)

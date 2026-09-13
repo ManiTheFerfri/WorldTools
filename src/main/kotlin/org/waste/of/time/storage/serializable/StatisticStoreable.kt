@@ -7,7 +7,7 @@ import net.minecraft.world.level.storage.LevelResource
 import net.minecraft.world.level.storage.LevelStorageSource
 import org.waste.of.time.manager.MessageManager.translateHighlight
 import org.waste.of.time.WorldTools
-import org.waste.of.time.WorldTools.CURRENT_VERSION
+import org.waste.of.time.WorldTools.CURRENT_DATA_VERSION
 import org.waste.of.time.WorldTools.GSON
 import org.waste.of.time.WorldTools.config
 import org.waste.of.time.WorldTools.mc
@@ -48,7 +48,7 @@ class StatisticStoreable : Storeable() {
                     add(BuiltInRegistries.STAT_TYPE.getId(type).toString(), typeObject)
                 }
             })
-            addProperty("DataVersion", CURRENT_VERSION)
+            addProperty("DataVersion", CURRENT_DATA_VERSION)
         }
 
         Files.createDirectories(statDirectory)
