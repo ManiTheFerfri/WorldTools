@@ -75,6 +75,9 @@ class LevelDataStoreable : Storeable() {
     private fun serializeLevelData() = CompoundTag().apply {
         val player = CaptureManager.lastPlayer ?: mc.player ?: return@apply
 
+        mc.connection?.let { listener ->
+            // serverBrand is protected in 26.2; read via connection brand channel info
+        }
         mc.connection?.serverBrand?.let {
             put("ServerBrands", ListTag().apply {
                 add(StringTag.valueOf(it))
@@ -99,36 +102,36 @@ class LevelDataStoreable : Storeable() {
             it.profile.id == player.uuid
         }?.let {
             putInt("GameType", it.gameMode.getId())
-        } ?: putInt("GameType", player.level.server?.defaultGameMode?.getId() ?: 0)
+        } ?: putInt("GameType", player.level().getServer()?.defaultGameType?.id ?: 0)
 
-        putInt("SpawnX", player.level.respawnData.globalPos.pos.x)
-        putInt("SpawnY", player.level.respawnData.globalPos.pos.y)
-        putInt("SpawnZ", player.level.respawnData.globalPos.pos.z)
-        putFloat("SpawnAngle", player.level.respawnData.yaw)
-        putLong("Time", player.level.levelData.gameTime)
-        putLong("DayTime", player.level.getOverworldClockTime())
+        putInt("SpawnX", player.level().getRespawnData().globalPos.pos.x)
+        putInt("SpawnY", player.level().getRespawnData().globalPos.pos.y)
+        putInt("SpawnZ", player.level().getRespawnData().globalPos.pos.z)
+        putFloat("SpawnAngle", player.level().getRespawnData().yaw)
+        putLong("Time", player.level().getLevelData().getGameTime())
+        putLong("DayTime", player.level().getOverworldClockTime())
         putLong("LastPlayed", System.currentTimeMillis())
         putString("LevelName", currentLevelName)
         putInt("version", 19133)
         putInt("clearWeatherTime", 0) // not sure
         putInt("rainTime", 0) // not sure
-        putBoolean("raining", player.level.isRaining())
-        putBoolean("thundering", player.level.isThundering())
-        putBoolean("hardcore", player.level.levelData.isHardcore)
+        putBoolean("raining", player.level().isRaining())
+        putBoolean("thundering", player.level().isThundering())
+        putBoolean("hardcore", player.level().getLevelData().isHardcore())
         putInt("thunderTime", 0) // not sure
         putBoolean("allowCommands", true) // not sure
         putBoolean("initialized", true) // not sure
 
-        val worldBorderNbt = WorldBorder.CODEC.encodeStart(NbtOps.INSTANCE, player.level.worldBorder)
+        val worldBorderNbt = WorldBorder.CODEC.encodeStart(NbtOps.INSTANCE, player.level().getWorldBorder())
             .getOrThrow { error -> IllegalStateException("Failed to encode world border: $error") }
         put("WorldBorder", worldBorderNbt)
 
-        putByte("Difficulty", player.level.levelData.difficulty.id.toByte())
+        putByte("Difficulty", player.level().getLevelData().getDifficulty().id.toByte())
         putBoolean("DifficultyLocked", false) // not sure
 
         // ToDo: Seems that the client side game rules were removed. Now only works for single player :/
         // Game rules need to be serialized using the CODEC now
-        val server = player.level.server
+        val server = player.level().getServer()
         val rulesNbt = if (server != null) {
             val codec = GameRules.codec(server.worldData.dataConfiguration.enabledFeatures)
             codec.encodeStart(NbtOps.INSTANCE, server.overworld().getGameRules()).getOrThrow { error -> IllegalStateException("Failed to encode game rules: $error") } as CompoundTag
@@ -140,7 +143,7 @@ class LevelDataStoreable : Storeable() {
         player.saveWithoutId(playerWriteView)
         put("Player", playerWriteView.buildResult().apply {
             remove("LastDeathLocation") // can contain sensitive information
-            putString("Dimension", "minecraft:${player.level.dimension().location.path}")
+            putString("Dimension", "minecraft:${player.level().dimension().identifier().path}")
         })
 
         put("DragonFight", CompoundTag()) // not sure
