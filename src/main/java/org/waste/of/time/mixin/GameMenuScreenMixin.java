@@ -13,7 +13,7 @@ import org.waste.of.time.gui.ManagerScreen;
 import org.waste.of.time.manager.CaptureManager;
 import org.waste.of.time.manager.MessageManager;
 
-@Mixin(GameMenuScreen.class)
+@Mixin(PauseScreen.class)
 public class GameMenuScreenMixin {
 
     @Inject(method = "initWidgets", at = @At("TAIL"))

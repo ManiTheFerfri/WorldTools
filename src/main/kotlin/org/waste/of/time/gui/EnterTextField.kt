@@ -13,12 +13,12 @@ class EnterTextField(
 ) : EditBox(font, x, y, width, height, message) {
 
     override fun keyPressed(input: KeyEvent): Boolean {
-        if (input.key == GLFW.KEY_RETURN) {
+        if (input.key == GLFW.GLFW_KEY_ENTER) {
             if (CaptureManager.capturing) {
-                client?.preserveCurrentChatScreen(null)
+                client?.gui?.setScreen(null)
                 CaptureManager.destroy()
             } else {
-                client?.preserveCurrentChatScreen(null)
+                client?.gui?.setScreen(null)
                 CaptureManager.start(value)
             }
             return true

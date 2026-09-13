@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.waste.of.time.WorldTools;
 
-@Mixin(IntegratedServerLoader.class)
+@Mixin(WorldOpenFlows.class)
 public class IntegratedServerLoaderMixin {
 
     @WrapOperation(method = "checkBackupAndStart",

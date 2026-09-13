@@ -10,7 +10,7 @@ import org.waste.of.time.manager.CaptureManager;
 
 import java.util.*;
 
-@Mixin(BossBarHud.class)
+@Mixin(BossHealthOverlay.class)
 public class BossBarHudMixin {
 
     /**
@@ -24,9 +24,9 @@ public class BossBarHudMixin {
     // todo: remove redirects to avoid mod conflicts
     //  either replace them with injects or use MixinExtras
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Ljava/util/Map;values()Ljava/util/Collection;"))
-    public Collection<ClientBossBar> modifyValues(Map<UUID, ClientBossBar> events) {
+    public Collection<LerpingBossEvent> modifyValues(Map<UUID, LerpingBossEvent> events) {
         if (!CaptureManager.INSTANCE.getCapturing()) return events.values();
-        List<ClientBossBar> newBossBars = new ArrayList<>(events.size() + 2);
+        List<LerpingBossEvent> newBossBars = new ArrayList<>(events.size() + 2);
         BarManager.INSTANCE.getCaptureBar().ifPresent(newBossBars::add);
         BarManager.INSTANCE.progressBar().ifPresent(newBossBars::add);
         newBossBars.addAll(events.values());
@@ -34,7 +34,7 @@ public class BossBarHudMixin {
     }
 
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Ljava/util/Map;isEmpty()Z"))
-    public boolean modifyIsEmpty(Map<UUID, ClientBossBar> events) {
+    public boolean modifyIsEmpty(Map<UUID, LerpingBossEvent> events) {
         if (!CaptureManager.INSTANCE.getCapturing()) return events.isEmpty();
         return events.isEmpty()
                 && BarManager.INSTANCE.getCaptureBar().isEmpty()

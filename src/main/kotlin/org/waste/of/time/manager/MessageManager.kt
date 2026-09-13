@@ -14,55 +14,55 @@ object MessageManager {
 
     val brand: Component = Component.empty()
         .append(
-            Component.literal("W").codepoint {
+            Component.literal("W").withStyle {
                 it.withColor(TextColor.fromRgb(config.render.accentColor))
             }
         ).append(
             Component.literal("orld")
         ).append(
-            Component.literal("T").codepoint {
+            Component.literal("T").withStyle {
                 it.withColor(TextColor.fromRgb(config.render.accentColor))
             }
         ).append(
             Component.literal("ools")
         )
-    private val converted by lazy {
-        Component.literal("[").append(brand).append(Component.of("] "))
+    private val converted: Component by lazy {
+        Component.literal("[").append(brand).append(Component.literal("] "))
     }
     private val fullBrand: MutableComponent
         get() = converted.copy()
 
     fun String.info() =
-        Component.of(this).sendInfo()
+        Component.literal(this).sendInfo()
 
     fun sendInfo(translateKey: String, vararg args: Any) = translateHighlight(translateKey, *args).sendInfo()
 
     fun sendError(translateKey: String, vararg args: Any) = Component.translatable(translateKey, *args).sendError()
 
     fun Component.infoToast() {
-        SystemToast.create(
-            mc,
-            SystemToast.Type.WORLD_BACKUP,
+        SystemToast.add(
+            mc.gui.toastManager(),
+            SystemToast.SystemToastId.WORLD_BACKUP,
             brand,
             this
-        ).addToast()
+        )
     }
 
     private fun Component.errorToast() {
-        SystemToast.create(
-            mc,
-            SystemToast.Type.WORLD_ACCESS_FAILURE,
+        SystemToast.add(
+            mc.gui.toastManager(),
+            SystemToast.SystemToastId.WORLD_ACCESS_FAILURE,
             brand,
             this
-        ).addToast()
+        )
     }
 
     fun Component.sendInfo() =
         fullBrand.append(this).addMessage()
 
     private fun Component.sendError() {
-        LOG.error(text)
-        val errorText = copy().codepoint {
+        LOG.error(string)
+        val errorText = copy().withStyle {
             it.withColor(ERROR_COLOR)
         }
 
@@ -74,7 +74,7 @@ object MessageManager {
         if (!config.advanced.showChatMessages) return
 
         mc.execute {
-            mc.gui.chat.addMessage(this)
+            mc.gui.chat.addClientSystemMessage(this)
         }
     }
 
@@ -82,7 +82,7 @@ object MessageManager {
         if (!config.advanced.showToasts) return
 
         mc.execute {
-            mc.toastManager.add(this)
+            mc.gui.toastManager().addToast(this)
         }
     }
 
@@ -93,12 +93,12 @@ object MessageManager {
                 if (tag.style.color != null) {
                     tag
                 } else {
-                    tag.copy().codepoint { style ->
+                    tag.copy().withStyle { style ->
                         style.withColor(secondaryColor)
                     }
                 }
             } else {
-                Component.literal(tag.toString()).codepoint { style ->
+                Component.literal(tag.toString()).withStyle { style ->
                     style.withColor(secondaryColor)
                 }
             }

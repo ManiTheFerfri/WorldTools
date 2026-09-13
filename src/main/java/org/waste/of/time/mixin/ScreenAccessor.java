@@ -9,7 +9,7 @@ import net.minecraft.client.gui.narration.NarratableEntry;
 
 @Mixin(Screen.class)
 public interface ScreenAccessor {
-    @Invoker("addDrawableChild")
-    <T extends Element & Drawable & Selectable> T wt$addDrawableChild(T widget);
+    @Invoker("addRenderableWidget")
+    <T extends GuiEventListener & Renderable & NarratableEntry> T wt$addRenderableWidget(T widget);
 }
 

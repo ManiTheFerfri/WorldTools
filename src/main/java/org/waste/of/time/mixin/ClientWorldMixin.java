@@ -12,17 +12,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.waste.of.time.Events;
 
-@Mixin(ClientWorld.class)
+@Mixin(ClientLevel.class)
 public class ClientWorldMixin {
 
-    @Inject(method = "removeEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;onRemoved()V", shift = At.Shift.AFTER))
+    @Inject(method = "removeEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;setRemoved(Lnet/minecraft/world/entity/Entity$RemovalReason;)V", shift = At.Shift.AFTER))
     public void onEntityRemovedInject(final int entityId, final Entity.RemovalReason removalReason, final CallbackInfo ci,
                                       @Local Entity entity) {
         Events.INSTANCE.onEntityRemoved(entity, removalReason);
     }
 
     @Inject(method = "getMapState", at = @At("HEAD"))
-    public void getMapStateInject(MapIdComponent id, CallbackInfoReturnable<MapState> cir) {
+    public void getMapStateInject(MapId id, CallbackInfoReturnable<MapItemSavedData> cir) {
         Events.INSTANCE.onMapStateGet(id);
     }
 }

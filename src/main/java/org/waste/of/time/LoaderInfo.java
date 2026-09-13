@@ -1,13 +1,11 @@
 package org.waste.of.time;
 
-import dev.architectury.injectables.annotations.ExpectPlatform;
-import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
+import net.fabricmc.loader.api.FabricLoader;
 
 public class LoaderInfo {
-    @Contract(pure = true)
-    @ExpectPlatform
-    public static @NotNull String getVersion() {
-        return "DEV";
+    public static String getVersion() {
+        return FabricLoader.getInstance().getModContainer("worldtools")
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("dev");
     }
 }
