@@ -1,43 +1,74 @@
-name: WorldTools 1.21.1 Build
+name: Build WorldTools (Minecraft 26.2)
 
 on:
-  pull_request:
   push:
     branches:
-      - "1.21.4"
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: Fabric / Minecraft 26.2 / Java 25
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
-      - name: Gradle Wrapper Verification
+      - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v3
 
-      - name: Setup JDK
+      - name: Set up Java 25
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          distribution: temurin
+          java-version: "25"
 
-      - name: Elevate wrapper permissions
-        run: chmod +x ./gradlew
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Build WorldTools
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          arguments: build
+      - name: Verify Minecraft target
+        shell: bash
+        run: |
+          if ! grep -Fxq 'minecraft_version=26.2' gradle.properties; then
+            echo '::error::This workflow is for Minecraft 26.2, but gradle.properties targets a different version.'
+            exit 1
+          fi
+          java -version
 
-      - name: Upload Fabric Artifacts
+      - name: Build Minecraft 26.2 mod
+        run: ./gradlew --no-daemon --stacktrace clean build
+
+      - name: Locate remapped runtime JAR
+        id: runtime-jar
+        shell: bash
+        run: |
+          mod_version="$(awk -F= '$1 == "mod_version" { print $2; exit }' gradle.properties)"
+          minecraft_version="$(awk -F= '$1 == "minecraft_version" { print $2; exit }' gradle.properties)"
+          jar_path="build/libs/WorldTools-${mod_version}+${minecraft_version}.jar"
+
+          if [[ ! -s "$jar_path" ]]; then
+            echo '::error::Expected remapped runtime JAR was not produced.'
+            find build/libs -maxdepth 1 -type f -name '*.jar' -print || true
+            exit 1
+          fi
+
+          echo "path=$jar_path" >> "$GITHUB_OUTPUT"
+          echo "Built $jar_path"
+
+      - name: Upload Minecraft 26.2 mod JAR
         uses: actions/upload-artifact@v5
         with:
-          name: WorldTools-fabric
-          path: fabric/build/libs/*.jar
-
-      - name: Upload Forge Artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          name: WorldTools-forge
-          path: forge/build/libs/*.jar
+          name: WorldTools-Minecraft-26.2
+          path: ${{ steps.runtime-jar.outputs.path }}
+          if-no-files-found: error
+          retention-days: 30

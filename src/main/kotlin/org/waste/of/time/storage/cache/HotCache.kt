@@ -89,7 +89,12 @@ object HotCache {
     @Suppress("MemberVisibilityCanBePrivate")
     fun isChunkSaved(x: Int, z: Int, dimension: ResourceKey<Level>): Boolean {
         val savedChunks = savedDimensionChunks[dimension] ?: return false
-        return savedChunks.contains(ChunkPos.pack(x, z))
+        // XaeroPlus queries this API from its asynchronous highlight refresh executor while
+        // chunk load callbacks add entries on the client thread. LongOpenHashSet is not
+        // thread-safe, so reads must use the same monitor as the writer in RegionBasedChunk.cache().
+        synchronized(savedChunks) {
+            return savedChunks.contains(ChunkPos.pack(x, z))
+        }
     }
 
     /**

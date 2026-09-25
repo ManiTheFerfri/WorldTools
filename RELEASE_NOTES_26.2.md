@@ -1,4 +1,4 @@
-# WorldTools 1.2.8+26.2.1 — Minecraft 26.2 Support
+# WorldTools 1.2.8+26.2 — Minecraft 26.2 Support
 
 This release brings WorldTools to **Minecraft 26.2 on Fabric**. It is the first 26.x build of WorldTools anywhere —
 upstream development ended at 1.21.11, so every change below is novel work by [@Promptt001](https://github.com/Promptt001)
