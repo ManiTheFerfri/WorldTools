@@ -166,10 +166,25 @@ relevant version branch of this fork.
 ## Building
 
 1. Clone the repository and run `./gradlew build`.
-2. The mod JAR can be found in `build/libs/WorldTools-<version>+26.2.jar`.
+2. The remapped runtime mod JAR can be found in `build/libs/WorldTools-<version>+26.2.jar`.
 
-Requires Java 25 and an active internet connection on the first run (dependencies are fetched from the
-Fabric maven).
+The **Build WorldTools (Minecraft 26.2)** GitHub Actions workflow builds on branch pushes, pull requests, and manual
+runs. Download its `WorldTools-Minecraft-26.2` artifact from the workflow run to get the runtime JAR. Version tags are
+handled by the release workflow below.
+
+### Publishing a release
+
+The release workflow triggers when you push a tag matching the Gradle version. The current tag is
+`1.2.8+26.2`; pushing it builds the remapped Fabric JAR, creates a GitHub Release, and publishes to Modrinth and
+CurseForge. GitHub publishing uses the automatic `GITHUB_TOKEN`; the repository must also have `MODRINTH_TOKEN` and
+`CURSEFORGE_TOKEN` configured under **Settings → Secrets and variables → Actions**.
+
+```sh
+git tag 1.2.8+26.2
+git push origin 1.2.8+26.2
+```
+
+Requires Java 25 and an active internet connection on the first run (dependencies are fetched from the Fabric Maven).
 
 ## License
 
